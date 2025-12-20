@@ -64,6 +64,8 @@ struct MainTabPage {
   @State knowledgeSubjects: KnowledgeSubject[] = [];
   @State allKnowledgeArticles: KnowledgeArticle[] = [];
   @State knowledgeSearchText: string = '';
+  @State expandedSubjects: Set<string> = new Set<string>();
+  @State expandedCategories: Set<string> = new Set<string>();
   // 成就解锁弹窗状态
   @State showAchievementDialog: boolean = false;
   @State unlockedAchievement: Achievement | null = null;
@@ -1859,36 +1861,371 @@ struct MainTabPage {
       .backgroundColor(ThemeColors.GRAY_100)
       .borderRadius(22)
 
-      // 分类标签
-      Scroll() {
-        Row({ space: 8 }) {
-          this.KnowledgeCategoryTag('全部', this.selectedKnowledgeCategory === '全部')
-          ForEach(this.knowledgeSubjects, (subject: KnowledgeSubject) => {
-            this.KnowledgeCategoryTag(subject.name, this.selectedKnowledgeCategory === subject.name)
-          }, (subject: KnowledgeSubject) => subject.id)
-        }
-        .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+      // 知识库内容
+      if (this.knowledgeSearchText.trim()) {
+        // 搜索模式：显示搜索结果列表
+        this.KnowledgeSearchResults()
+      } else {
+        // 树形目录模式
+        this.KnowledgeTreeView()
       }
-      .scrollable(ScrollDirection.Horizontal)
-      .scrollBar(BarState.Off)
-      .width('100%')
-      .margin({ top: ThemeConstants.SPACING_MD })
-
-      // 知识文章列表
-      Scroll() {
-        Column() {
-          ForEach(this.getFilteredKnowledgeArticles(), (article: KnowledgeArticle) => {
-            this.KnowledgeArticleItem(article)
-          }, (article: KnowledgeArticle) => article.id)
-        }
-        .padding({ bottom: ThemeConstants.SPACING_2XL })
-      }
-      .scrollBar(BarState.Off)
-      .layoutWeight(1)
-      .margin({ top: ThemeConstants.SPACING_SM })
     }
     .width('100%')
     .height('100%')
+  }
+
+  /**
+   * 知识库树形目录视图
+   */
+  @Builder
+  KnowledgeTreeView() {
+    Scroll() {
+      Column() {
+        // 学习进度概览卡片
+        this.KnowledgeProgressCard()
+
+        // 科目树形列表
+        ForEach(this.knowledgeSubjects, (subject: KnowledgeSubject) => {
+          this.KnowledgeSubjectTree(subject)
+        }, (subject: KnowledgeSubject) => subject.id)
+      }
+      .padding({ bottom: ThemeConstants.SPACING_2XL })
+    }
+    .scrollBar(BarState.Off)
+    .layoutWeight(1)
+    .margin({ top: ThemeConstants.SPACING_SM })
+  }
+
+  /**
+   * 知识库学习进度卡片
+   */
+  @Builder
+  KnowledgeProgressCard() {
+    Column() {
+      Row() {
+        Column() {
+          Text('知识学习')
+            .fontSize(ThemeConstants.FONT_SIZE_MD)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+
+          Text(`共 ${this.knowledgeSubjects.length} 个科目，${this.allKnowledgeArticles.length} 篇知识点`)
+            .fontSize(ThemeConstants.FONT_SIZE_XS)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .margin({ top: 4 })
+        }
+        .alignItems(HorizontalAlign.Start)
+
+        Blank()
+
+        Column() {
+          Text('📚')
+            .fontSize(32)
+        }
+        .width(56)
+        .height(56)
+        .borderRadius(28)
+        .backgroundColor(ThemeColors.PRIMARY + '15')
+        .justifyContent(FlexAlign.Center)
+      }
+      .width('100%')
+
+      // 快捷入口
+      Row() {
+        this.KnowledgeQuickEntry('📕', '最近阅读', () => {
+          // TODO: 跳转最近阅读
+        })
+        this.KnowledgeQuickEntry('⭐', '我的收藏', () => {
+          // TODO: 跳转收藏
+        })
+        this.KnowledgeQuickEntry('📝', '学习笔记', () => {
+          Router.push('pages/StudyNotesPage');
+        })
+      }
+      .width('100%')
+      .margin({ top: ThemeConstants.SPACING_MD })
+      .justifyContent(FlexAlign.SpaceBetween)
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACING_MD)
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+    .backgroundColor(ThemeColors.SURFACE)
+    .borderRadius(ThemeConstants.RADIUS_LG)
+    .border({ width: 1, color: ThemeColors.GRAY_200 })
+  }
+
+  /**
+   * 知识库快捷入口
+   */
+  @Builder
+  KnowledgeQuickEntry(icon: string, title: string, onClick: () => void) {
+    Column() {
+      Text(icon)
+        .fontSize(20)
+      Text(title)
+        .fontSize(ThemeConstants.FONT_SIZE_XS)
+        .fontColor(ThemeColors.TEXT_SECONDARY)
+        .margin({ top: 4 })
+    }
+    .width('30%')
+    .padding({ top: 10, bottom: 10 })
+    .backgroundColor(ThemeColors.GRAY_100)
+    .borderRadius(ThemeConstants.RADIUS_MD)
+    .onClick(onClick)
+  }
+
+  /**
+   * 科目树形节点
+   */
+  @Builder
+  KnowledgeSubjectTree(subject: KnowledgeSubject) {
+    Column() {
+      // 科目标题行（可展开/折叠）
+      Row() {
+        // 展开/折叠图标
+        Text(this.isSubjectExpanded(subject.id) ? '▼' : '▶')
+          .fontSize(12)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .width(20)
+
+        // 科目图标
+        Column() {
+          Text(subject.icon)
+            .fontSize(20)
+        }
+        .width(36)
+        .height(36)
+        .borderRadius(ThemeConstants.RADIUS_SM)
+        .backgroundColor(subject.color + '20')
+        .justifyContent(FlexAlign.Center)
+
+        // 科目信息
+        Column() {
+          Text(subject.name)
+            .fontSize(ThemeConstants.FONT_SIZE_BASE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+
+          Text(`${subject.articleCount} 篇知识点`)
+            .fontSize(ThemeConstants.FONT_SIZE_XS)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .margin({ top: 2 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: ThemeConstants.SPACING_SM })
+        .layoutWeight(1)
+
+        // 进度指示
+        Text(`${this.getSubjectReadProgress(subject.id)}%`)
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(subject.color)
+          .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+          .backgroundColor(subject.color + '15')
+          .borderRadius(10)
+      }
+      .width('100%')
+      .padding(ThemeConstants.SPACING_BASE)
+      .backgroundColor(ThemeColors.SURFACE)
+      .borderRadius(ThemeConstants.RADIUS_MD)
+      .border({ width: 1, color: ThemeColors.GRAY_200 })
+      .onClick(() => {
+        this.toggleSubjectExpand(subject.id);
+      })
+
+      // 展开的分类列表
+      if (this.isSubjectExpanded(subject.id)) {
+        Column() {
+          ForEach(subject.categories, (category: KnowledgeCategory) => {
+            this.KnowledgeCategoryTree(subject, category)
+          }, (category: KnowledgeCategory) => category.id)
+        }
+        .width('100%')
+        .padding({ left: 20 })
+        .margin({ top: 4 })
+      }
+    }
+    .width('100%')
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+  }
+
+  /**
+   * 分类树形节点
+   */
+  @Builder
+  KnowledgeCategoryTree(subject: KnowledgeSubject, category: KnowledgeCategory) {
+    Column() {
+      // 分类标题行
+      Row() {
+        // 展开/折叠图标
+        Text(this.isCategoryExpanded(category.id) ? '▼' : '▶')
+          .fontSize(10)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .width(16)
+
+        // 分类图标
+        Text(category.icon)
+          .fontSize(14)
+
+        // 分类名称
+        Text(category.name)
+          .fontSize(ThemeConstants.FONT_SIZE_SM)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+          .margin({ left: 6 })
+          .layoutWeight(1)
+
+        // 文章数量
+        Text(`${category.articleCount}`)
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.TEXT_HINT)
+      }
+      .width('100%')
+      .padding({ left: 8, right: 12, top: 10, bottom: 10 })
+      .backgroundColor(ThemeColors.GRAY_100)
+      .borderRadius(ThemeConstants.RADIUS_SM)
+      .onClick(() => {
+        this.toggleCategoryExpand(category.id);
+      })
+
+      // 展开的文章列表
+      if (this.isCategoryExpanded(category.id)) {
+        Column() {
+          ForEach(this.getArticlesByCategory(category.id), (article: KnowledgeArticle) => {
+            this.KnowledgeArticleTreeItem(article, subject.color)
+          }, (article: KnowledgeArticle) => article.id)
+        }
+        .width('100%')
+        .padding({ left: 16 })
+        .margin({ top: 4 })
+      }
+    }
+    .width('100%')
+    .margin({ top: 4 })
+  }
+
+  /**
+   * 文章树形项
+   */
+  @Builder
+  KnowledgeArticleTreeItem(article: KnowledgeArticle, color: string) {
+    Row() {
+      // 连接线指示
+      Column()
+        .width(2)
+        .height(16)
+        .backgroundColor(color + '40')
+        .borderRadius(1)
+
+      // 文章标题
+      Text(article.title)
+        .fontSize(ThemeConstants.FONT_SIZE_SM)
+        .fontColor(ThemeColors.TEXT_PRIMARY)
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+        .margin({ left: 8 })
+        .layoutWeight(1)
+
+      // 阅读状态
+      if (article.viewCount > 0) {
+        Text('✓')
+          .fontSize(12)
+          .fontColor(ThemeColors.SUCCESS)
+      }
+    }
+    .width('100%')
+    .padding({ left: 8, right: 12, top: 8, bottom: 8 })
+    .onClick(() => {
+      const params: RouteParams = {};
+      params['articleId'] = article.id;
+      Router.push('pages/KnowledgeDetailPage', params);
+    })
+  }
+
+  /**
+   * 知识库搜索结果
+   */
+  @Builder
+  KnowledgeSearchResults() {
+    Scroll() {
+      Column() {
+        ForEach(this.getFilteredKnowledgeArticles(), (article: KnowledgeArticle) => {
+          this.KnowledgeArticleItem(article)
+        }, (article: KnowledgeArticle) => article.id)
+
+        if (this.getFilteredKnowledgeArticles().length === 0) {
+          Column() {
+            Text('🔍')
+              .fontSize(48)
+              .margin({ top: 60 })
+            Text('未找到相关知识点')
+              .fontSize(ThemeConstants.FONT_SIZE_BASE)
+              .fontColor(ThemeColors.TEXT_HINT)
+              .margin({ top: ThemeConstants.SPACING_MD })
+          }
+          .width('100%')
+        }
+      }
+      .padding({ bottom: ThemeConstants.SPACING_2XL })
+    }
+    .scrollBar(BarState.Off)
+    .layoutWeight(1)
+    .margin({ top: ThemeConstants.SPACING_SM })
+  }
+
+  /**
+   * 判断科目是否展开
+   */
+  private isSubjectExpanded(subjectId: string): boolean {
+    return this.expandedSubjects.has(subjectId);
+  }
+
+  /**
+   * 切换科目展开状态
+   */
+  private toggleSubjectExpand(subjectId: string): void {
+    const newSet = new Set<string>(this.expandedSubjects);
+    if (newSet.has(subjectId)) {
+      newSet.delete(subjectId);
+    } else {
+      newSet.add(subjectId);
+    }
+    this.expandedSubjects = newSet;
+  }
+
+  /**
+   * 判断分类是否展开
+   */
+  private isCategoryExpanded(categoryId: string): boolean {
+    return this.expandedCategories.has(categoryId);
+  }
+
+  /**
+   * 切换分类展开状态
+   */
+  private toggleCategoryExpand(categoryId: string): void {
+    const newSet = new Set<string>(this.expandedCategories);
+    if (newSet.has(categoryId)) {
+      newSet.delete(categoryId);
+    } else {
+      newSet.add(categoryId);
+    }
+    this.expandedCategories = newSet;
+  }
+
+  /**
+   * 获取分类下的文章
+   */
+  private getArticlesByCategory(categoryId: string): KnowledgeArticle[] {
+    return this.allKnowledgeArticles.filter((a: KnowledgeArticle) => a.categoryId === categoryId);
+  }
+
+  /**
+   * 获取科目阅读进度
+   */
+  private getSubjectReadProgress(subjectId: string): number {
+    const subjectArticles = this.allKnowledgeArticles.filter((a: KnowledgeArticle) => a.subjectId === subjectId);
+    if (subjectArticles.length === 0) return 0;
+    const readCount = subjectArticles.filter((a: KnowledgeArticle) => a.viewCount > 0).length;
+    return Math.round((readCount / subjectArticles.length) * 100);
   }
 
   /**
