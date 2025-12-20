@@ -3,20 +3,19 @@
  * HydroQuiz - 水利工程检测员刷题宝
  * 基于用户学习数据提供个性化推荐
  */
-import { answerRecordService, TodayStatistics } from './AnswerRecordService';
+import { answerRecordService } from './AnswerRecordService';
 import { questionBankService, SubjectStats } from './QuestionBankService';
-import { questionService } from './QuestionService';
-import { Question, WrongQuestion } from '../common/types/QuestionTypes';
+import { WrongQuestion } from '../common/types/QuestionTypes';
 import { Logger } from '../common/utils/Logger';
 
 /**
  * 推荐类型
  */
 export enum RecommendType {
-  WEAK_POINT = 'weak_point',      // 薄弱知识点
-  WRONG_REVIEW = 'wrong_review',  // 错题回顾
-  NEW_LEARN = 'new_learn',        // 新题学习
-  DAILY_TASK = 'daily_task'       // 每日任务
+  WEAK_POINT = 'weak_point',
+  WRONG_REVIEW = 'wrong_review',
+  NEW_LEARN = 'new_learn',
+  DAILY_TASK = 'daily_task'
 }
 
 /**
@@ -45,10 +44,18 @@ export interface SubjectProgress {
   completedCount: number;
   correctCount: number;
   wrongCount: number;
-  progress: number;        // 完成进度 0-100
-  accuracy: number;        // 正确率 0-100
-  masteryLevel: string;    // 掌握程度：未开始/入门/熟悉/掌握/精通
-  masteryColor: string;    // 掌握程度颜色
+  progress: number;
+  accuracy: number;
+  masteryLevel: string;
+  masteryColor: string;
+}
+
+/**
+ * 掌握程度结果
+ */
+interface MasteryResult {
+  level: string;
+  color: string;
 }
 
 /**
@@ -204,20 +211,19 @@ class SmartRecommendService {
    */
   async getSubjectProgress(subject: SubjectStats): Promise<SubjectProgress> {
     try {
-      // 获取该科目的错题
+      // 获取该科目的错题数（简化处理）
       const wrongQuestions = await answerRecordService.getWrongQuestions();
-      const subjectQuestions = await questionService.getQuestionsBySubject(subject.id);
-      const subjectQuestionIds = new Set(subjectQuestions.map((q: Question) => q.id));
-      
-      // 统计该科目的错题数
       let wrongCount = 0;
-      for (const wq of wrongQuestions) {
-        if (subjectQuestionIds.has(wq.questionId)) {
-          wrongCount++;
-        }
+      
+      // 简化：按比例估算该科目的错题数
+      const stats = await questionBankService.getQuestionBankStats();
+      const totalQuestions = stats.totalCount;
+      if (totalQuestions > 0 && subject.questionCount > 0) {
+        const ratio = subject.questionCount / totalQuestions;
+        wrongCount = Math.round(wrongQuestions.length * ratio);
       }
 
-      // 估算完成数量（基于总答题记录）
+      // 估算完成数量
       const completedCount = await this.getSubjectCompletedCount(subject.id);
       const correctCount = Math.max(0, completedCount - wrongCount);
 
@@ -250,7 +256,7 @@ class SmartRecommendService {
       return result;
     } catch (error) {
       Logger.error('[SmartRecommendService] Failed to get subject progress', error as Error);
-      return {
+      const defaultResult: SubjectProgress = {
         subjectId: subject.id,
         subjectName: subject.name,
         shortName: subject.shortName,
@@ -264,6 +270,7 @@ class SmartRecommendService {
         masteryLevel: '未开始',
         masteryColor: '#999999'
       };
+      return defaultResult;
     }
   }
 
@@ -272,8 +279,6 @@ class SmartRecommendService {
    */
   private async getSubjectCompletedCount(subjectId: string): Promise<number> {
     try {
-      // 这里简化处理，实际应该查询数据库
-      // 暂时返回估算值
       const totalCompleted = await answerRecordService.getCompletedQuestionCount();
       const stats = await questionBankService.getQuestionBankStats();
       const totalQuestions = stats.totalCount;
@@ -294,24 +299,30 @@ class SmartRecommendService {
   /**
    * 计算掌握程度
    */
-  private calculateMasteryLevel(progress: number, accuracy: number): { level: string; color: string } {
+  private calculateMasteryLevel(progress: number, accuracy: number): MasteryResult {
     if (progress === 0) {
-      return { level: '未开始', color: '#999999' };
+      const result: MasteryResult = { level: '未开始', color: '#999999' };
+      return result;
     }
     
     // 综合评分 = 进度 * 0.4 + 正确率 * 0.6
     const score = progress * 0.4 + accuracy * 0.6;
 
     if (score >= 90) {
-      return { level: '精通', color: '#52C41A' };
+      const result: MasteryResult = { level: '精通', color: '#52C41A' };
+      return result;
     } else if (score >= 75) {
-      return { level: '掌握', color: '#1890FF' };
+      const result: MasteryResult = { level: '掌握', color: '#1890FF' };
+      return result;
     } else if (score >= 60) {
-      return { level: '熟悉', color: '#FAAD14' };
+      const result: MasteryResult = { level: '熟悉', color: '#FAAD14' };
+      return result;
     } else if (score >= 30) {
-      return { level: '入门', color: '#FF7A45' };
+      const result: MasteryResult = { level: '入门', color: '#FF7A45' };
+      return result;
     } else {
-      return { level: '学习中', color: '#FF4D4F' };
+      const result: MasteryResult = { level: '学习中', color: '#FF4D4F' };
+      return result;
     }
   }
 
@@ -328,54 +339,59 @@ class SmartRecommendService {
 
       // 根据今日学习情况给出建议
       if (todayStats.total === 0) {
-        suggestions.push({
+        const suggestion: StudySuggestion = {
           icon: '🌅',
           title: '开始今日学习',
           description: '新的一天，从刷题开始！建议先完成20道基础题热身。',
           action: 'start_practice',
           priority: 1
-        });
+        };
+        suggestions.push(suggestion);
       } else if (todayStats.total < 30) {
-        suggestions.push({
+        const suggestion: StudySuggestion = {
           icon: '💪',
           title: '继续加油',
           description: `今日已完成 ${todayStats.total} 题，再做 ${30 - todayStats.total} 题达到基础目标！`,
           action: 'continue_practice',
           priority: 1
-        });
+        };
+        suggestions.push(suggestion);
       }
 
       // 错题建议
       if (wrongCount > 10) {
-        suggestions.push({
+        const suggestion: StudySuggestion = {
           icon: '📕',
           title: '错题需要复习',
           description: `你有 ${wrongCount} 道错题待复习，建议每天复习10道巩固记忆。`,
           action: 'review_wrong',
           priority: 2
-        });
+        };
+        suggestions.push(suggestion);
       }
 
       // 薄弱科目建议
       if (weakSubject && weakSubject.accuracy < 60) {
-        suggestions.push({
+        const suggestion: StudySuggestion = {
           icon: '🎯',
           title: `${weakSubject.shortName}需要加强`,
           description: `该科目正确率仅 ${weakSubject.accuracy}%，建议重点突破。`,
           action: 'focus_weak',
           priority: 3
-        });
+        };
+        suggestions.push(suggestion);
       }
 
       // 正确率建议
       if (todayStats.total > 10 && todayStats.accuracy < 70) {
-        suggestions.push({
+        const suggestion: StudySuggestion = {
           icon: '📖',
           title: '建议先看知识点',
           description: '今日正确率较低，建议先学习相关知识点再做题。',
           action: 'learn_knowledge',
           priority: 2
-        });
+        };
+        suggestions.push(suggestion);
       }
 
     } catch (error) {

@@ -13,7 +13,7 @@ import { widgetDataService } from '../services/WidgetDataService';
 import { databaseService } from '../data/database/DatabaseService';
 import { TipsDialog } from '@kit.ArkUI';
 import { KnowledgeService } from '../services/KnowledgeService';
-import { KnowledgeArticle, KnowledgeSubject, ContentType } from '../common/types/KnowledgeTypes';
+import { KnowledgeArticle, KnowledgeSubject, KnowledgeCategory, ContentType } from '../common/types/KnowledgeTypes';
 import { achievementNotificationService, AchievementUnlockCallback } from '../services/AchievementNotificationService';
 import { Achievement } from '../services/AchievementService';
 import { smartRecommendService, RecommendCard, SubjectProgress, RecommendType } from '../services/SmartRecommendService';
