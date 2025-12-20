@@ -1523,10 +1523,8 @@ struct MainTabPage {
   QuestionBankItemDynamic(subject: SubjectStats) {
     Row() {
       Column() {
-        Text(subject.shortName.substring(0, 1))
-          .fontSize(20)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(subject.color)
+        Text(this.getSubjectEmoji(subject.id))
+          .fontSize(24)
       }
       .width(48)
       .height(48)
@@ -1782,29 +1780,78 @@ struct MainTabPage {
     }
   }
 
+  /**
+   * 获取科目对应的emoji图标
+   */
+  private getSubjectEmoji(subjectId: string): string {
+    switch (subjectId) {
+      case AppConstants.SUBJECT_BASIC: return '📚';
+      case AppConstants.SUBJECT_CONCRETE: return '🏗️';
+      case AppConstants.SUBJECT_GEOTECHNICAL_ROCK: return '🪨';
+      case AppConstants.SUBJECT_GEOTECHNICAL_FOUNDATION: return '🏛️';
+      case AppConstants.SUBJECT_MEASUREMENT: return '📏';
+      case AppConstants.SUBJECT_METAL: return '🔩';
+      case AppConstants.SUBJECT_MECHANICAL: return '⚙️';
+      default: return '📖';
+    }
+  }
+
 
   /**
    * 我的页面内容
    */
   @Builder
   ProfileContent() {
-    Scroll() {
-      Column() {
-        // 用户信息卡片
-        this.ProfileUserCard()
+    Column() {
+      // 顶部标题栏
+      Row() {
+        Text('个人中心')
+          .fontSize(ThemeConstants.FONT_SIZE_XL)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
 
-        // 学习数据统计
-        this.ProfileStatsSection()
+        Blank()
 
-        // 功能菜单
-        this.ProfileMenuSection()
-
-        // 其他设置
-        this.ProfileOtherSection()
+        Column() {
+          Image($r('app.media.Settings'))
+            .width(22)
+            .height(22)
+        }
+        .width(40)
+        .height(40)
+        .borderRadius(20)
+        .backgroundColor(ThemeColors.GRAY_100)
+        .justifyContent(FlexAlign.Center)
+        .onClick(() => {
+          Router.goToSettings();
+        })
       }
-      .padding({ bottom: ThemeConstants.SPACING_2XL })
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD,
+        top: ThemeConstants.SPACING_MD, bottom: ThemeConstants.SPACING_SM })
+
+      Scroll() {
+        Column() {
+          // 用户信息卡片
+          this.ProfileUserCard()
+
+          // 学习数据统计行
+          this.ProfileStatsRow()
+
+          // 考试进度卡片
+          this.ProfileExamProgressCard()
+
+          // 常用功能 2x2 网格
+          this.ProfileCommonFunctions()
+
+          // 更多服务
+          this.ProfileMoreServices()
+        }
+        .padding({ bottom: ThemeConstants.SPACING_2XL })
+      }
+      .scrollBar(BarState.Off)
+      .layoutWeight(1)
     }
-    .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
   }
@@ -1814,219 +1861,348 @@ struct MainTabPage {
    */
   @Builder
   ProfileUserCard() {
-    Column() {
-      Row() {
-        // 头像
-        Stack() {
-          Column()
-            .width(72)
-            .height(72)
-            .borderRadius(36)
-            .linearGradient({
-              angle: 135,
-              colors: [[ThemeColors.PRIMARY, 0], [ThemeColors.SECONDARY, 1]]
-            })
+    Row() {
+      // 头像
+      Stack() {
+        Column()
+          .width(68)
+          .height(68)
+          .borderRadius(34)
+          .linearGradient({
+            angle: 135,
+            colors: [[ThemeColors.PRIMARY, 0], [ThemeColors.SECONDARY, 1]]
+          })
 
-          Image(this.getAvatarResource())
-            .width(68)
-            .height(68)
-            .borderRadius(34)
-            .objectFit(ImageFit.Cover)
-            .border({ width: 2, color: ThemeColors.WHITE })
-        }
+        Image(this.getAvatarResource())
+          .width(64)
+          .height(64)
+          .borderRadius(32)
+          .objectFit(ImageFit.Cover)
+          .border({ width: 2, color: ThemeColors.WHITE })
+      }
 
-        Column() {
-          Text(this.userInfo.nickname)
-            .fontSize(ThemeConstants.FONT_SIZE_XL)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeColors.TEXT_PRIMARY)
+      Column() {
+        Text(this.userInfo.nickname)
+          .fontSize(ThemeConstants.FONT_SIZE_LG)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
 
-          Text(`ID: ${this.userInfo.userId}`)
-            .fontSize(ThemeConstants.FONT_SIZE_XS)
-            .fontColor(ThemeColors.TEXT_HINT)
-            .margin({ top: 4 })
+        Text(`ID: ${this.userInfo.userId || '未设置'}`)
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .margin({ top: 4 })
 
+        Row() {
           Text(this.userInfo.status)
             .fontSize(ThemeConstants.FONT_SIZE_XS)
             .fontColor(ThemeColors.PRIMARY)
-            .margin({ top: 4 })
+            .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+            .backgroundColor(ThemeColors.PRIMARY + '15')
+            .borderRadius(10)
         }
-        .alignItems(HorizontalAlign.Start)
-        .margin({ left: ThemeConstants.SPACING_MD })
-        .layoutWeight(1)
-
-        // 编辑按钮
-        Column() {
-          Image($r('app.media.Edit'))
-            .width(20)
-            .height(20)
-            .fillColor(ThemeColors.TEXT_HINT)
-        }
-        .width(36)
-        .height(36)
-        .borderRadius(18)
-        .backgroundColor(ThemeColors.GRAY_100)
-        .justifyContent(FlexAlign.Center)
-        .onClick(() => {
-          Router.push('pages/ProfileEditPage');
-        })
+        .margin({ top: 6 })
       }
-      .width('100%')
-      .padding(ThemeConstants.SPACING_MD)
+      .alignItems(HorizontalAlign.Start)
+      .margin({ left: ThemeConstants.SPACING_MD })
+      .layoutWeight(1)
+
+      // 编辑按钮
+      Row() {
+        Text('编辑')
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.PRIMARY)
+        Image($r('app.media.Rightarrow'))
+          .width(12)
+          .height(12)
+          .fillColor(ThemeColors.PRIMARY)
+          .margin({ left: 2 })
+      }
+      .padding({ left: 10, right: 10, top: 6, bottom: 6 })
+      .backgroundColor(ThemeColors.PRIMARY + '10')
+      .borderRadius(14)
+      .onClick(() => {
+        Router.push('pages/ProfileEditPage');
+      })
     }
     .width('100%')
-    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_MD })
+    .padding(ThemeConstants.SPACING_MD)
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
     .backgroundColor(ThemeColors.SURFACE)
     .borderRadius(ThemeConstants.RADIUS_LG)
     .border({ width: 1, color: ThemeColors.GRAY_200 })
   }
 
   /**
-   * 学习数据统计
+   * 学习数据统计行
    */
   @Builder
-  ProfileStatsSection() {
-    Column() {
-      Text('学习数据')
-        .fontSize(ThemeConstants.FONT_SIZE_MD)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeColors.TEXT_PRIMARY)
-        .width('100%')
-        .padding({ left: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_LG })
-
-      Row() {
-        this.ProfileStatItem('📝', `${this.completedQuestionCount}`, '已做题目')
-        this.ProfileStatItem('✅', `${this.todayStats.accuracy}%`, '正确率')
-        this.ProfileStatItem('📕', `${this.wrongCount}`, '错题数')
-        this.ProfileStatItem('⭐', `${this.favoriteCount}`, '收藏数')
+  ProfileStatsRow() {
+    Row() {
+      // 已做题数
+      Column() {
+        Text(`${this.completedQuestionCount}`)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+        Text('已做题数')
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .margin({ top: 4 })
       }
-      .width('100%')
-      .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
-      .justifyContent(FlexAlign.SpaceBetween)
+      .layoutWeight(1)
+
+      // 分隔线
+      Column()
+        .width(1)
+        .height(30)
+        .backgroundColor(ThemeColors.GRAY_200)
+
+      // 完成进度
+      Column() {
+        Text(`${this.getOverallProgress()}%`)
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+        Text('完成进度')
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .margin({ top: 4 })
+      }
+      .layoutWeight(1)
+
+      // 分隔线
+      Column()
+        .width(1)
+        .height(30)
+        .backgroundColor(ThemeColors.GRAY_200)
+
+      // 最高模拟分
+      Column() {
+        Text(this.getHighestExamScore())
+          .fontSize(22)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+        Text('最高模拟分')
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .margin({ top: 4 })
+      }
+      .layoutWeight(1)
     }
     .width('100%')
-  }
-
-  /**
-   * 统计项
-   */
-  @Builder
-  ProfileStatItem(icon: string, value: string, label: string) {
-    Column() {
-      Text(icon)
-        .fontSize(24)
-
-      Text(value)
-        .fontSize(ThemeConstants.FONT_SIZE_MD)
-        .fontWeight(FontWeight.Bold)
-        .fontColor(ThemeColors.TEXT_PRIMARY)
-        .margin({ top: 4 })
-
-      Text(label)
-        .fontSize(ThemeConstants.FONT_SIZE_XS)
-        .fontColor(ThemeColors.TEXT_HINT)
-        .margin({ top: 2 })
-    }
-    .width('23%')
-    .padding({ top: ThemeConstants.SPACING_SM, bottom: ThemeConstants.SPACING_SM })
+    .padding({ top: ThemeConstants.SPACING_MD, bottom: ThemeConstants.SPACING_MD })
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
     .backgroundColor(ThemeColors.SURFACE)
-    .borderRadius(ThemeConstants.RADIUS_MD)
+    .borderRadius(ThemeConstants.RADIUS_LG)
     .border({ width: 1, color: ThemeColors.GRAY_200 })
   }
 
   /**
-   * 功能菜单
+   * 考试进度卡片
    */
   @Builder
-  ProfileMenuSection() {
-    Column() {
-      Text('学习工具')
-        .fontSize(ThemeConstants.FONT_SIZE_MD)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeColors.TEXT_PRIMARY)
+  ProfileExamProgressCard() {
+    Stack() {
+      // 渐变背景
+      Column()
         .width('100%')
-        .padding({ left: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_LG })
+        .height('100%')
+        .borderRadius(ThemeConstants.RADIUS_LG)
+        .linearGradient({
+          angle: 135,
+          colors: [[ThemeColors.PRIMARY, 0], [ThemeColors.SECONDARY, 1]]
+        })
 
       Column() {
-        this.ProfileMenuItem('📕', '错题本', `${this.wrongCount} 道错题`, () => {
-          Router.goToWrongBook();
-        })
-        this.ProfileMenuItem('⭐', '我的收藏', `${this.favoriteCount} 道收藏`, () => {
-          Router.goToFavorite();
-        })
-        this.ProfileMenuItem('📊', '学习报告', '查看学习统计', () => {
-          Router.push('pages/StudyReportPage');
-        })
-        this.ProfileMenuItem('🏆', '我的成就', '查看成就徽章', () => {
-          Router.push('pages/AchievementPage');
-        })
+        Row() {
+          Column() {
+            Text('考试进度')
+              .fontSize(ThemeConstants.FONT_SIZE_MD)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(ThemeColors.WHITE)
+
+            Row() {
+              Text('距离考试还有 ')
+                .fontSize(ThemeConstants.FONT_SIZE_SM)
+                .fontColor(ThemeColors.WHITE)
+                .opacity(0.9)
+              Text(`${this.daysUntilExam}`)
+                .fontSize(ThemeConstants.FONT_SIZE_LG)
+                .fontWeight(FontWeight.Bold)
+                .fontColor('#FFD700')
+              Text(' 天')
+                .fontSize(ThemeConstants.FONT_SIZE_SM)
+                .fontColor(ThemeColors.WHITE)
+                .opacity(0.9)
+            }
+            .margin({ top: 8 })
+          }
+          .alignItems(HorizontalAlign.Start)
+
+          Blank()
+
+          Text('📅')
+            .fontSize(40)
+            .opacity(0.3)
+        }
+        .width('100%')
+
+        // 进度条
+        Column() {
+          Row() {
+            Text('学习进度')
+              .fontSize(ThemeConstants.FONT_SIZE_XS)
+              .fontColor(ThemeColors.WHITE)
+              .opacity(0.9)
+            Blank()
+            Text(`${this.getOverallProgress()}%`)
+              .fontSize(ThemeConstants.FONT_SIZE_XS)
+              .fontColor(ThemeColors.WHITE)
+          }
+          .width('100%')
+
+          Progress({ value: this.getOverallProgress(), total: 100, type: ProgressType.Linear })
+            .width('100%')
+            .height(8)
+            .color('#FFD700')
+            .backgroundColor('rgba(255,255,255,0.3)')
+            .borderRadius(4)
+            .margin({ top: 6 })
+        }
+        .margin({ top: ThemeConstants.SPACING_MD })
       }
       .width('100%')
-      .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
-      .backgroundColor(ThemeColors.SURFACE)
-      .borderRadius(ThemeConstants.RADIUS_MD)
-      .border({ width: 1, color: ThemeColors.GRAY_200 })
+      .height('100%')
+      .padding(ThemeConstants.SPACING_MD)
+    }
+    .width('100%')
+    .height(130)
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+    .borderRadius(ThemeConstants.RADIUS_LG)
+    .shadow({ radius: 12, color: 'rgba(24, 144, 255, 0.3)', offsetX: 0, offsetY: 6 })
+  }
+
+  /**
+   * 常用功能 2x2 网格
+   */
+  @Builder
+  ProfileCommonFunctions() {
+    Column() {
+      Row() {
+        Text('常用功能')
+          .fontSize(ThemeConstants.FONT_SIZE_MD)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_LG, bottom: ThemeConstants.SPACING_SM })
+
+      // 2x2 网格
+      Column() {
+        Row() {
+          // 学习报告
+          this.ProfileFunctionItem('📊', '学习报告', ThemeColors.PRIMARY, () => {
+            Router.push('pages/StudyReportPage');
+          })
+
+          // 考试成绩
+          this.ProfileFunctionItem('📋', '考试成绩', ThemeColors.SUCCESS, () => {
+            Router.push('pages/ExamHistoryPage');
+          })
+        }
+        .width('100%')
+
+        Row() {
+          // 我的成就
+          this.ProfileFunctionItem('🏆', '我的成就', ThemeColors.WARNING, () => {
+            Router.push('pages/AchievementPage');
+          })
+
+          // 错题本
+          this.ProfileFunctionItem('📕', '错题本', ThemeColors.ERROR, () => {
+            Router.goToWrongBook();
+          })
+        }
+        .width('100%')
+        .margin({ top: ThemeConstants.SPACING_SM })
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
     }
     .width('100%')
   }
 
   /**
-   * 菜单项
+   * 功能项
    */
   @Builder
-  ProfileMenuItem(icon: string, title: string, desc: string, onClick: () => void) {
-    Row() {
-      Text(icon)
-        .fontSize(22)
-
+  ProfileFunctionItem(icon: string, title: string, color: ResourceColor, onClick: () => void) {
+    Column() {
       Column() {
-        Text(title)
-          .fontSize(ThemeConstants.FONT_SIZE_BASE)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeColors.TEXT_PRIMARY)
-
-        Text(desc)
-          .fontSize(ThemeConstants.FONT_SIZE_XS)
-          .fontColor(ThemeColors.TEXT_HINT)
-          .margin({ top: 2 })
+        Text(icon)
+          .fontSize(28)
       }
-      .alignItems(HorizontalAlign.Start)
-      .margin({ left: ThemeConstants.SPACING_SM })
-      .layoutWeight(1)
+      .width(50)
+      .height(50)
+      .borderRadius(ThemeConstants.RADIUS_MD)
+      .backgroundColor(color + '15')
+      .justifyContent(FlexAlign.Center)
 
-      Image($r('app.media.Rightarrow'))
-        .width(16)
-        .height(16)
-        .fillColor(ThemeColors.TEXT_HINT)
+      Text(title)
+        .fontSize(ThemeConstants.FONT_SIZE_SM)
+        .fontColor(ThemeColors.TEXT_PRIMARY)
+        .margin({ top: 8 })
     }
-    .width('100%')
-    .padding(ThemeConstants.SPACING_MD)
+    .layoutWeight(1)
+    .padding({ top: ThemeConstants.SPACING_MD, bottom: ThemeConstants.SPACING_MD })
+    .margin({ left: ThemeConstants.SPACING_XS, right: ThemeConstants.SPACING_XS })
+    .backgroundColor(ThemeColors.SURFACE)
+    .borderRadius(ThemeConstants.RADIUS_MD)
+    .border({ width: 1, color: ThemeColors.GRAY_200 })
     .onClick(onClick)
   }
 
   /**
-   * 其他设置
+   * 更多服务
    */
   @Builder
-  ProfileOtherSection() {
+  ProfileMoreServices() {
     Column() {
-      Text('其他')
-        .fontSize(ThemeConstants.FONT_SIZE_MD)
-        .fontWeight(FontWeight.Medium)
-        .fontColor(ThemeColors.TEXT_PRIMARY)
-        .width('100%')
-        .padding({ left: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_LG })
+      Row() {
+        Text('更多服务')
+          .fontSize(ThemeConstants.FONT_SIZE_MD)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_LG, bottom: ThemeConstants.SPACING_SM })
 
       Column() {
-        this.ProfileSettingItem('⚙️', '设置', '应用设置', () => {
-          Router.goToSettings();
+        // 我的收藏
+        this.ProfileServiceItem('⭐', '我的收藏', `${this.favoriteCount} 道收藏`, () => {
+          Router.goToFavorite();
         })
-        this.ProfileSettingItem('ℹ️', '关于', '关于应用', () => {
+
+        Divider()
+          .color(ThemeColors.GRAY_200)
+          .margin({ left: 44 })
+
+        // 学习笔记
+        this.ProfileServiceItem('📝', '学习笔记', '记录学习心得', () => {
+          Router.push('pages/NotesPage');
+        })
+
+        Divider()
+          .color(ThemeColors.GRAY_200)
+          .margin({ left: 44 })
+
+        // 关于应用
+        this.ProfileServiceItem('ℹ️', '关于应用', '版本信息', () => {
           Router.push('pages/AboutPage');
         })
       }
       .width('100%')
-      .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+      .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
       .backgroundColor(ThemeColors.SURFACE)
       .borderRadius(ThemeConstants.RADIUS_MD)
       .border({ width: 1, color: ThemeColors.GRAY_200 })
@@ -2035,10 +2211,10 @@ struct MainTabPage {
   }
 
   /**
-   * 设置项
+   * 服务项
    */
   @Builder
-  ProfileSettingItem(icon: string, title: string, desc: string, onClick: () => void) {
+  ProfileServiceItem(icon: string, title: string, desc: string, onClick: () => void) {
     Row() {
       Text(icon)
         .fontSize(22)
@@ -2046,13 +2222,13 @@ struct MainTabPage {
       Text(title)
         .fontSize(ThemeConstants.FONT_SIZE_BASE)
         .fontColor(ThemeColors.TEXT_PRIMARY)
-        .layoutWeight(1)
         .margin({ left: ThemeConstants.SPACING_SM })
+        .layoutWeight(1)
 
       Text(desc)
         .fontSize(ThemeConstants.FONT_SIZE_XS)
         .fontColor(ThemeColors.TEXT_HINT)
-        .margin({ right: ThemeConstants.SPACING_SM })
+        .margin({ right: ThemeConstants.SPACING_XS })
 
       Image($r('app.media.Rightarrow'))
         .width(16)
