@@ -1,0 +1,387 @@
+/**
+ * 用户信息服务
+ * 管理本地用户个人信息
+ */
+import { preferences } from '@kit.ArkData';
+import { Logger } from '../common/utils/Logger';
+
+const WIDGET_PREFERENCES_NAME: string = 'hydro_quiz_prefs';
+
+/**
+ * 用户信息接口
+ */
+export interface UserInfo {
+  nickname: string;
+  gender: 'male' | 'female';
+  userId: string;
+  status: string;
+}
+
+/**
+ * 默认用户信息
+ */
+const DEFAULT_USER: UserInfo = {
+  nickname: '水利学员',
+  gender: 'male',
+  userId: '',
+  status: '水利检测员备考中'
+};
+
+class UserService {
+  private static instance: UserService;
+  private preferences: preferences.Preferences | null = null;
+  private context: Context | null = null;
+  private readonly STORE_NAME = 'user_preferences';
+
+  private constructor() {}
+
+  static getInstance(): UserService {
+    if (!UserService.instance) {
+      UserService.instance = new UserService();
+    }
+    return UserService.instance;
+  }
+
+  /**
+   * 初始化
+   */
+  async init(context: Context): Promise<void> {
+    try {
+      this.context = context;
+      this.preferences = await preferences.getPreferences(context, this.STORE_NAME);
+      // 生成用户ID（如果没有）
+      const userId = await this.preferences.get('userId', '');
+      if (!userId) {
+        const newUserId = this.generateUserId();
+        await this.preferences.put('userId', newUserId);
+        await this.preferences.flush();
+      }
+      Logger.info('[UserService] Initialized');
+    } catch (error) {
+      Logger.error('[UserService] Init failed', error as Error);
+    }
+  }
+
+
+  /**
+   * 生成用户ID
+   */
+  private generateUserId(): string {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  }
+
+  /**
+   * 获取用户信息
+   */
+  async getUserInfo(): Promise<UserInfo> {
+    if (!this.preferences) {
+      return DEFAULT_USER;
+    }
+    try {
+      const nickname = await this.preferences.get('nickname', DEFAULT_USER.nickname) as string;
+      const gender = await this.preferences.get('gender', DEFAULT_USER.gender) as 'male' | 'female';
+      const userId = await this.preferences.get('userId', '') as string;
+      const status = await this.preferences.get('status', DEFAULT_USER.status) as string;
+
+      const userInfo: UserInfo = {
+        nickname: nickname,
+        gender: gender,
+        userId: userId,
+        status: status
+      };
+      return userInfo;
+    } catch (error) {
+      Logger.error('[UserService] Get user info failed', error as Error);
+      return DEFAULT_USER;
+    }
+  }
+
+  /**
+   * 保存用户信息
+   */
+  async saveUserInfo(info: UserInfo): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('nickname', info.nickname);
+      await this.preferences.put('gender', info.gender);
+      await this.preferences.put('status', info.status);
+      await this.preferences.flush();
+      Logger.info('[UserService] User info saved');
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Save user info failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 更新昵称
+   */
+  async updateNickname(nickname: string): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('nickname', nickname);
+      await this.preferences.flush();
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Update nickname failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 更新性别
+   */
+  async updateGender(gender: 'male' | 'female'): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('gender', gender);
+      await this.preferences.flush();
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Update gender failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 获取考试目标日期
+   * @returns 考试日期时间戳，如果未设置返回默认值（30天后）
+   */
+  async getExamDate(): Promise<number> {
+    if (!this.preferences) {
+      return Date.now() + 30 * 24 * 60 * 60 * 1000;
+    }
+    try {
+      const defaultDate = Date.now() + 30 * 24 * 60 * 60 * 1000;
+      const examDate = await this.preferences.get('examDate', defaultDate) as number;
+      return examDate;
+    } catch (error) {
+      Logger.error('[UserService] Get exam date failed', error as Error);
+      return Date.now() + 30 * 24 * 60 * 60 * 1000;
+    }
+  }
+
+  /**
+   * 保存考试目标日期
+   */
+  async saveExamDate(timestamp: number): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('examDate', timestamp);
+      await this.preferences.flush();
+      Logger.info('[UserService] Exam date saved');
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Save exam date failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 计算距离考试的天数
+   */
+  calculateDaysUntilExam(examTimestamp: number): number {
+    const now = Date.now();
+    const diff = examTimestamp - now;
+    if (diff <= 0) {
+      return 0;
+    }
+    return Math.ceil(diff / (24 * 60 * 60 * 1000));
+  }
+
+  /**
+   * 格式化日期为显示字符串
+   */
+  formatExamDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${year}年${month}月${day}日`;
+  }
+
+  /**
+   * 获取每日目标题数
+   */
+  async getDailyGoal(): Promise<number> {
+    if (!this.preferences) {
+      return 50;
+    }
+    try {
+      const goal = await this.preferences.get('dailyGoal', 50) as number;
+      return goal;
+    } catch (error) {
+      Logger.error('[UserService] Get daily goal failed', error as Error);
+      return 50;
+    }
+  }
+
+  /**
+   * 保存每日目标题数
+   */
+  async saveDailyGoal(goal: number): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('dailyGoal', goal);
+      await this.preferences.flush();
+
+      // 同时更新卡片的 Preferences
+      await this.updateWidgetDailyTarget(goal);
+
+      Logger.info('[UserService] Daily goal saved');
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Save daily goal failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 更新卡片的每日目标
+   */
+  private async updateWidgetDailyTarget(goal: number): Promise<void> {
+    if (!this.context) return;
+
+    try {
+      const widgetPref = preferences.getPreferencesSync(this.context, { name: WIDGET_PREFERENCES_NAME });
+      widgetPref.putSync('dailyTarget', goal);
+      await widgetPref.flush();
+      Logger.info(`[UserService] Widget daily target updated to ${goal}`);
+    } catch (error) {
+      Logger.error('[UserService] Failed to update widget daily target', error as Error);
+    }
+  }
+
+  /**
+   * 获取今日打卡日期
+   */
+  private getTodayDateString(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  }
+
+  /**
+   * 检查今日是否已打卡
+   */
+  async hasCheckedInToday(): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      const lastCheckIn = await this.preferences.get('lastCheckInDate', '') as string;
+      return lastCheckIn === this.getTodayDateString();
+    } catch (error) {
+      Logger.error('[UserService] Check check-in status failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 执行今日打卡
+   */
+  async checkInToday(): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('lastCheckInDate', this.getTodayDateString());
+      await this.preferences.flush();
+      Logger.info('[UserService] Check-in successful');
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Check-in failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 获取周计划学习天数
+   * @returns 学习天数数组，如 [1,2,3,4,5] 表示周一到周五
+   */
+  async getWeeklyPlanDays(): Promise<number[]> {
+    if (!this.preferences) {
+      return [1, 2, 3, 4, 5, 6, 7];
+    }
+    try {
+      const daysStr = await this.preferences.get('weeklyPlanDays', '1,2,3,4,5,6,7') as string;
+      const days = daysStr.split(',').map((d: string) => parseInt(d)).filter((d: number) => !isNaN(d));
+      return days.length > 0 ? days : [1, 2, 3, 4, 5, 6, 7];
+    } catch (error) {
+      Logger.error('[UserService] Get weekly plan days failed', error as Error);
+      return [1, 2, 3, 4, 5, 6, 7];
+    }
+  }
+
+  /**
+   * 保存周计划学习天数
+   */
+  async saveWeeklyPlanDays(days: number[]): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      const daysStr = days.join(',');
+      await this.preferences.put('weeklyPlanDays', daysStr);
+      await this.preferences.flush();
+      Logger.info('[UserService] Weekly plan days saved');
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Save weekly plan days failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 判断某天是否在周计划中
+   */
+  isDayInPlan(dayIndex: number, planDays: number[]): boolean {
+    return planDays.includes(dayIndex);
+  }
+
+  /**
+   * 获取"答题后显示答案"设置
+   */
+  async getShowAnswerImmediately(): Promise<boolean> {
+    if (!this.preferences) {
+      return true;
+    }
+    try {
+      const show = await this.preferences.get('showAnswerImmediately', true) as boolean;
+      return show;
+    } catch (error) {
+      Logger.error('[UserService] Get showAnswerImmediately failed', error as Error);
+      return true;
+    }
+  }
+
+  /**
+   * 保存"答题后显示答案"设置
+   */
+  async saveShowAnswerImmediately(show: boolean): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('showAnswerImmediately', show);
+      await this.preferences.flush();
+      Logger.info(`[UserService] showAnswerImmediately saved: ${show}`);
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Save showAnswerImmediately failed', error as Error);
+      return false;
+    }
+  }
+}
+
+export const userService = UserService.getInstance();

@@ -1,0 +1,32 @@
+{
+  "src": [
+    "pages/SplashPage",
+    "pages/MainTabPage",
+    "pages/Index",
+    "pages/PracticePage",
+    "pages/AnswerPage",
+    "pages/ExamPage",
+    "pages/ExamResultPage",
+    "pages/WrongBookPage",
+    "pages/FavoritePage",
+    "pages/SettingsPage",
+    "pages/AboutPage",
+    "pages/ProfileEditPage",
+    "pages/TodayRecordPage",
+    "pages/WrongPracticePage",
+    "pages/WrongPracticeModePage",
+    "pages/WrongStatisticsPage",
+    "pages/WrongNotePage",
+    "pages/MockExamEntryPage",
+    "pages/MockExamPage",
+    "pages/MockExamResultPage",
+    "pages/MockExamHistoryPage",
+    "pages/KnowledgeListPage",
+    "pages/KnowledgeDetailPage",
+    "pages/StudyNotesPage",
+    "pages/StudyReportPage",
+    "pages/ExamScorePage",
+    "pages/AchievementPage",
+    "pages/ExamAnswerPage"
+  ]
+}

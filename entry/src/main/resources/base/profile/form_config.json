@@ -1,0 +1,46 @@
+{
+  "forms": [
+    {
+      "name": "StudyReminder",
+      "displayName": "$string:widget_study_reminder",
+      "description": "$string:widget_study_reminder_desc",
+      "src": "./ets/widget/pages/StudyReminderCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "isDefault": true,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "00:05",
+      "updateDuration": 1,
+      "defaultDimension": "2*2",
+      "supportDimensions": [
+        "2*2"
+      ]
+    },
+    {
+      "name": "StudyProgress",
+      "displayName": "$string:widget_study_progress",
+      "description": "$string:widget_study_progress_desc",
+      "src": "./ets/widget/pages/StudyProgressCard.ets",
+      "uiSyntax": "arkts",
+      "window": {
+        "designWidth": 720,
+        "autoDesignWidth": true
+      },
+      "colorMode": "auto",
+      "isDynamic": true,
+      "isDefault": false,
+      "updateEnabled": true,
+      "scheduledUpdateTime": "00:05",
+      "updateDuration": 1,
+      "defaultDimension": "2*4",
+      "supportDimensions": [
+        "2*4"
+      ]
+    }
+  ]
+}

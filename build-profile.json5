@@ -1,0 +1,67 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\Lenovo\\.ohos\\config\\default_HydroQuiz_s5dVisaU_UujgW1fskF_aI6Smn8spoybET2NxnQ-PSE=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B12D6008CFE406B955A75C9069E0F113BC88643DAED61193DA381BF121357814EA0A3478DFF14FC",
+          "profile": "C:\\Users\\Lenovo\\.ohos\\config\\default_HydroQuiz_s5dVisaU_UujgW1fskF_aI6Smn8spoybET2NxnQ-PSE=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\Lenovo\\.ohos\\config\\default_HydroQuiz_s5dVisaU_UujgW1fskF_aI6Smn8spoybET2NxnQ-PSE=.p12",
+          "storePassword": "0000001BAC4F379874B3029A99BACD1E345E036CC40D8506CDD0C9011F98D56F06A5A1351BC9028DD0222A"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "targetSdkVersion": "6.0.0(20)",
+        "compatibleSdkVersion": "5.0.5(17)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true,
+            "useNormalizedOHMUrl": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ],
+    "capabilities": [
+      {
+        "bundleName": "com.example.hydroquiz",
+        "config": [
+          {
+            "capability": "com.huawei.service.mapkit",
+            "name": "Map Kit"
+          }
+        ]
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

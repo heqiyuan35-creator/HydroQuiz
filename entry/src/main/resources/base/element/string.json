@@ -1,0 +1,52 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "microphone_permission_reason",
+      "value": "用于语音录入笔记功能，将您的语音转换为文字"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "水利工程检测员刷题宝"
+    },
+    {
+      "name": "EntryFormAbility_desc",
+      "value": "刷题宝桌面卡片"
+    },
+    {
+      "name": "EntryFormAbility_label",
+      "value": "刷题宝卡片"
+    },
+    {
+      "name": "widget_desc",
+      "value": "This is a service widget."
+    },
+    {
+      "name": "widget_display_name",
+      "value": "widget"
+    },
+    {
+      "name": "widget_study_reminder",
+      "value": "学习提醒"
+    },
+    {
+      "name": "widget_study_reminder_desc",
+      "value": "提醒您每日刷题打卡"
+    },
+    {
+      "name": "widget_study_progress",
+      "value": "今日进度"
+    },
+    {
+      "name": "widget_study_progress_desc",
+      "value": "展示今日学习成果"
+    }
+  ]
+}

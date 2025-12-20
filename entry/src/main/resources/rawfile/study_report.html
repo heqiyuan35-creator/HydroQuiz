@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>学习报告</title>
+  <script src="echarts.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%; height: 100%;
+      background: #F5F7FA;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow-x: hidden;
+    }
+    .container { width: 100%; padding: 12px; }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .overview-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .overview-item {
+      background: linear-gradient(135deg, #f8faff 0%, #f0f5ff 100%);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .overview-item.success { background: linear-gradient(135deg, #f6ffed 0%, #d9f7be 100%); }
+    .overview-item.warning { background: linear-gradient(135deg, #fffbe6 0%, #fff1b8 100%); }
+    .overview-item.error { background: linear-gradient(135deg, #fff2f0 0%, #ffccc7 100%); }
+    .overview-value {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1890FF;
+    }
+    .overview-item.success .overview-value { color: #52C41A; }
+    .overview-item.warning .overview-value { color: #FAAD14; }
+    .overview-item.error .overview-value { color: #FF4D4F; }
+    .overview-label { font-size: 13px; color: #666; margin-top: 4px; }
+    .chart-box { width: 100%; height: 260px; }
+    .chart-box.large { height: 300px; }
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .progress-text { font-size: 14px; color: #666; }
+    .progress-percent { font-size: 24px; font-weight: 700; color: #1890FF; }
+    .progress-bar {
+      height: 12px;
+      background: #f0f0f0;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1890FF, #36CFC9);
+      border-radius: 6px;
+      transition: width 0.8s ease;
+    }
+    .subject-list { margin-top: 12px; }
+    .subject-item {
+      display: flex;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    .subject-item:last-child { border-bottom: none; }
+    .subject-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-right: 10px;
+    }
+    .subject-info { flex: 1; }
+    .subject-name { font-size: 14px; color: #333; font-weight: 500; }
+    .subject-bar {
+      height: 6px;
+      background: #f0f0f0;
+      border-radius: 3px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+    .subject-bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.6s ease;
+    }
+    .subject-stats { text-align: right; margin-left: 12px; }
+    .subject-count { font-size: 14px; font-weight: 600; color: #333; }
+    .subject-rate { font-size: 12px; color: #52C41A; margin-top: 2px; }
+    .exam-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .exam-stat-item {
+      text-align: center;
+      padding: 12px 8px;
+      background: #f8f9fa;
+      border-radius: 8px;
+    }
+    .exam-stat-value { font-size: 18px; font-weight: 600; color: #1890FF; }
+    .exam-stat-label { font-size: 11px; color: #999; margin-top: 4px; }
+    .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+    .empty-state .icon { font-size: 56px; margin-bottom: 16px; }
+    .loading { display: flex; justify-content: center; align-items: center; height: 200px; }
+    .loading-spinner {
+      width: 36px; height: 36px;
+      border: 3px solid #f0f0f0;
+      border-top-color: #1890FF;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="container" id="container">
+    <div class="loading" id="loading"><div class="loading-spinner"></div></div>
+  </div>
+  <script>
+    var SUBJECT_COLORS = {
+      '001': '#1677FF', '002': '#389E0D', '003': '#D46B08',
+      '004': '#C41D7F', '005': '#531DAB', '006': '#006D75', '007': '#AD2102'
+    };
+    var SUBJECT_NAMES = {
+      '001': '基础知识', '002': '混凝土工程', '003': '岩土(岩石)',
+      '004': '岩土(地基)', '005': '量测', '006': '金属结构', '007': '机械电气'
+    };
+    var trendChart = null;
+    var subjectChart = null;
+
+    function initCharts(dataJson) {
+      try {
+        var data = JSON.parse(dataJson);
+        document.getElementById('loading').style.display = 'none';
+        if (!data || data.completedQuestions === 0) {
+          showEmptyState();
+          return;
+        }
+        renderReport(data);
+      } catch (e) {
+        console.error('initCharts error:', e);
+        showEmptyState();
+      }
+    }
+
+    function showEmptyState() {
+      document.getElementById('container').innerHTML =
+        '<div class="empty-state"><div class="icon">📊</div><div>暂无学习数据<br>开始做题后会生成学习报告</div></div>';
+    }
+
+    function renderReport(data) {
+      var progressPercent = data.totalQuestions > 0 ? Math.round(data.completedQuestions / data.totalQuestions * 100) : 0;
+      var container = document.getElementById('container');
+      
+      container.innerHTML =
+        '<div class="card">' +
+          '<div class="card-title"><span>📈</span>学习概览</div>' +
+          '<div class="overview-grid">' +
+            '<div class="overview-item"><div class="overview-value">' + data.completedQuestions + '</div><div class="overview-label">已做题数</div></div>' +
+            '<div class="overview-item success"><div class="overview-value">' + data.overallAccuracy + '%</div><div class="overview-label">正确率</div></div>' +
+            '<div class="overview-item warning"><div class="overview-value">' + data.studyDays + '</div><div class="overview-label">学习天数</div></div>' +
+            '<div class="overview-item"><div class="overview-value">' + data.totalStudyMinutes + '</div><div class="overview-label">学习时长(分)</div></div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-title"><span>🎯</span>题库进度</div>' +
+          '<div class="progress-header">' +
+            '<span class="progress-text">已完成 ' + data.completedQuestions + ' / ' + data.totalQuestions + ' 题</span>' +
+            '<span class="progress-percent">' + progressPercent + '%</span>' +
+          '</div>' +
+          '<div class="progress-bar"><div class="progress-fill" style="width: ' + progressPercent + '%"></div></div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-title"><span>📊</span>近7天学习趋势</div>' +
+          '<div class="chart-box" id="trendChart"></div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-title"><span>📚</span>科目学习分布</div>' +
+          '<div class="chart-box" id="subjectChart"></div>' +
+          '<div class="subject-list" id="subjectList"></div>' +
+        '</div>' +
+        '<div class="card">' +
+          '<div class="card-title"><span>📝</span>模拟考试统计</div>' +
+          '<div class="exam-stats">' +
+            '<div class="exam-stat-item"><div class="exam-stat-value">' + data.examCount + '</div><div class="exam-stat-label">考试次数</div></div>' +
+            '<div class="exam-stat-item"><div class="exam-stat-value">' + data.examPassRate + '%</div><div class="exam-stat-label">通过率</div></div>' +
+            '<div class="exam-stat-item"><div class="exam-stat-value">' + data.examAvgScore + '</div><div class="exam-stat-label">平均分</div></div>' +
+            '<div class="exam-stat-item"><div class="exam-stat-value">' + data.examHighestScore + '</div><div class="exam-stat-label">最高分</div></div>' +
+          '</div>' +
+        '</div>';
+
+      setTimeout(function() {
+        initTrendChart(data.weekTrend);
+        initSubjectChart(data.subjectData);
+        renderSubjectList(data.subjectData);
+      }, 100);
+    }
+
+    function initTrendChart(weekTrend) {
+      var dom = document.getElementById('trendChart');
+      if (!dom) return;
+      trendChart = echarts.init(dom);
+      var dates = weekTrend.map(function(d) { return d.date.substring(5); });
+      var totals = weekTrend.map(function(d) { return d.totalCount; });
+      var corrects = weekTrend.map(function(d) { return d.correctCount; });
+
+      trendChart.setOption({
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['做题数', '正确数'], bottom: 0 },
+        grid: { left: 10, right: 10, top: 20, bottom: 40, containLabel: true },
+        xAxis: { type: 'category', data: dates, axisLine: { lineStyle: { color: '#e8e8e8' } }, axisLabel: { color: '#999' } },
+        yAxis: { type: 'value', minInterval: 1, axisLine: { show: false }, splitLine: { lineStyle: { color: '#f0f0f0', type: 'dashed' } } },
+        series: [
+          { name: '做题数', type: 'bar', data: totals, itemStyle: { color: '#1890FF', borderRadius: [4, 4, 0, 0] }, barWidth: 16 },
+          { name: '正确数', type: 'bar', data: corrects, itemStyle: { color: '#52C41A', borderRadius: [4, 4, 0, 0] }, barWidth: 16 }
+        ]
+      });
+    }
+
+    function initSubjectChart(subjectData) {
+      var dom = document.getElementById('subjectChart');
+      if (!dom) return;
+      subjectChart = echarts.init(dom);
+      var pieData = subjectData.filter(function(s) { return s.totalCount > 0; }).map(function(s) {
+        return { value: s.totalCount, name: SUBJECT_NAMES[s.subjectId] || s.subjectId, itemStyle: { color: SUBJECT_COLORS[s.subjectId] } };
+      });
+
+      subjectChart.setOption({
+        tooltip: { trigger: 'item', formatter: '{b}: {c}题 ({d}%)' },
+        series: [{
+          type: 'pie', radius: ['40%', '65%'], center: ['50%', '50%'],
+          itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
+          label: { show: true, formatter: '{b}\n{d}%', fontSize: 11 },
+          data: pieData
+        }]
+      });
+    }
+
+    function renderSubjectList(subjectData) {
+      var listDom = document.getElementById('subjectList');
+      if (!listDom) return;
+      var html = subjectData.filter(function(s) { return s.totalCount > 0; })
+        .sort(function(a, b) { return b.totalCount - a.totalCount; })
+        .map(function(s) {
+          var color = SUBJECT_COLORS[s.subjectId] || '#999';
+          var name = SUBJECT_NAMES[s.subjectId] || s.subjectId;
+          return '<div class="subject-item">' +
+            '<div class="subject-dot" style="background:' + color + '"></div>' +
+            '<div class="subject-info"><div class="subject-name">' + name + '</div>' +
+            '<div class="subject-bar"><div class="subject-bar-fill" style="width:' + s.accuracy + '%;background:' + color + '"></div></div></div>' +
+            '<div class="subject-stats"><div class="subject-count">' + s.totalCount + '题</div><div class="subject-rate">正确率 ' + s.accuracy + '%</div></div></div>';
+        }).join('');
+      listDom.innerHTML = html;
+    }
+
+    function updateCharts(dataJson) { initCharts(dataJson); }
+    window.addEventListener('resize', function() {
+      if (trendChart) trendChart.resize();
+      if (subjectChart) subjectChart.resize();
+    });
+  </script>
+</body>
+</html>
