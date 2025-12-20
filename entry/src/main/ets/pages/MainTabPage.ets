@@ -16,6 +16,7 @@ import { KnowledgeService } from '../services/KnowledgeService';
 import { KnowledgeArticle, KnowledgeSubject, ContentType } from '../common/types/KnowledgeTypes';
 import { achievementNotificationService, AchievementUnlockCallback } from '../services/AchievementNotificationService';
 import { Achievement } from '../services/AchievementService';
+import { smartRecommendService, RecommendCard, SubjectProgress, RecommendType } from '../services/SmartRecommendService';
 
 /**
  * Tab项配置接口
@@ -66,6 +67,9 @@ struct MainTabPage {
   // 成就解锁弹窗状态
   @State showAchievementDialog: boolean = false;
   @State unlockedAchievement: Achievement | null = null;
+  // 智能推荐相关状态
+  @State recommendCards: RecommendCard[] = [];
+  @State subjectProgressList: SubjectProgress[] = [];
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
   private achievementCallback: AchievementUnlockCallback | null = null;
 
@@ -169,6 +173,10 @@ struct MainTabPage {
       // 加载知识库数据
       this.knowledgeSubjects = this.knowledgeService.getSubjects();
       this.allKnowledgeArticles = this.knowledgeService.getAllArticles();
+
+      // 加载智能推荐数据
+      this.recommendCards = await smartRecommendService.getTodayRecommendCards();
+      this.subjectProgressList = await smartRecommendService.getAllSubjectProgress();
     } catch (error) {
       // 忽略错误，使用默认值
     }
@@ -523,6 +531,9 @@ struct MainTabPage {
         // 考试倒计时卡片
         this.ExamCountdownCard()
 
+        // 今日推荐（智能推荐模块）
+        this.TodayRecommendSection()
+
         // 学习进度与打卡（合并）
         this.LearningAndCheckInSection()
 
@@ -534,6 +545,141 @@ struct MainTabPage {
     .scrollBar(BarState.Off)
     .width('100%')
     .height('100%')
+  }
+
+  /**
+   * 今日推荐模块
+   */
+  @Builder
+  TodayRecommendSection() {
+    Column() {
+      // 标题
+      Row() {
+        Row() {
+          Text('🎯')
+            .fontSize(18)
+          Text(' 今日推荐')
+            .fontSize(ThemeConstants.FONT_SIZE_MD)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+        }
+
+        Blank()
+
+        Text('基于你的学习数据')
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.TEXT_HINT)
+      }
+      .width('100%')
+      .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+
+      // 推荐卡片列表
+      if (this.recommendCards.length > 0) {
+        Row() {
+          ForEach(this.recommendCards.slice(0, 2), (card: RecommendCard, index: number) => {
+            this.RecommendCardItem(card)
+          }, (card: RecommendCard) => card.type)
+        }
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+        .margin({ top: ThemeConstants.SPACING_SM })
+      }
+    }
+    .width('100%')
+    .margin({ top: ThemeConstants.SPACING_MD })
+  }
+
+  /**
+   * 推荐卡片项
+   */
+  @Builder
+  RecommendCardItem(card: RecommendCard) {
+    Column() {
+      Row() {
+        Column() {
+          Text(card.icon)
+            .fontSize(28)
+        }
+        .width(48)
+        .height(48)
+        .borderRadius(ThemeConstants.RADIUS_MD)
+        .backgroundColor(card.color + '20')
+        .justifyContent(FlexAlign.Center)
+
+        Blank()
+
+        Column() {
+          Text(`${card.count}`)
+            .fontSize(24)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(card.color)
+          Text('题')
+            .fontSize(ThemeConstants.FONT_SIZE_XS)
+            .fontColor(ThemeColors.TEXT_HINT)
+        }
+      }
+      .width('100%')
+
+      Text(card.title)
+        .fontSize(ThemeConstants.FONT_SIZE_BASE)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(ThemeColors.TEXT_PRIMARY)
+        .margin({ top: ThemeConstants.SPACING_SM })
+
+      Text(card.subtitle)
+        .fontSize(ThemeConstants.FONT_SIZE_XS)
+        .fontColor(ThemeColors.TEXT_HINT)
+        .margin({ top: 4 })
+        .maxLines(1)
+        .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+      // 开始按钮
+      Row() {
+        Text('开始练习')
+          .fontSize(ThemeConstants.FONT_SIZE_XS)
+          .fontColor(ThemeColors.WHITE)
+      }
+      .width('100%')
+      .height(32)
+      .margin({ top: ThemeConstants.SPACING_SM })
+      .borderRadius(16)
+      .justifyContent(FlexAlign.Center)
+      .backgroundColor(card.color)
+      .onClick(() => {
+        this.handleRecommendCardClick(card);
+      })
+    }
+    .layoutWeight(1)
+    .padding(ThemeConstants.SPACING_BASE)
+    .margin({ left: 4, right: 4 })
+    .backgroundColor(ThemeColors.SURFACE)
+    .borderRadius(ThemeConstants.RADIUS_LG)
+    .border({ width: 1, color: ThemeColors.GRAY_200 })
+    .shadow({ radius: 4, color: 'rgba(0,0,0,0.05)', offsetX: 0, offsetY: 2 })
+  }
+
+  /**
+   * 处理推荐卡片点击
+   */
+  private handleRecommendCardClick(card: RecommendCard): void {
+    const params: RouteParams = {};
+    switch (card.type) {
+      case RecommendType.WRONG_REVIEW:
+        Router.goToWrongBook();
+        break;
+      case RecommendType.WEAK_POINT:
+        if (card.subjectId) {
+          Router.goToPractice(card.subjectId, 'sequence');
+        } else {
+          Router.goToPractice(undefined, 'sequence');
+        }
+        break;
+      case RecommendType.NEW_LEARN:
+      case RecommendType.DAILY_TASK:
+      default:
+        Router.goToPractice(undefined, 'sequence');
+        break;
+    }
   }
 
   /**
@@ -1424,7 +1570,7 @@ struct MainTabPage {
 
           // 所有分类标题
           Row() {
-            Text('所有分类')
+            Text('科目进度')
               .fontSize(ThemeConstants.FONT_SIZE_MD)
               .fontWeight(FontWeight.Bold)
               .fontColor(ThemeColors.TEXT_PRIMARY)
@@ -1439,11 +1585,11 @@ struct MainTabPage {
           .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD,
             top: ThemeConstants.SPACING_LG, bottom: ThemeConstants.SPACING_XS })
 
-          // 科目列表（动态渲染）
+          // 科目列表（带进度可视化）
           Column() {
-            ForEach(this.subjectList, (subject: SubjectStats) => {
-              this.QuestionBankItemDynamic(subject)
-            }, (subject: SubjectStats) => subject.id)
+            ForEach(this.subjectProgressList, (progress: SubjectProgress) => {
+              this.QuestionBankItemWithProgress(progress)
+            }, (progress: SubjectProgress) => progress.subjectId)
           }
           .padding({ bottom: ThemeConstants.SPACING_2XL })
         }
@@ -1517,7 +1663,97 @@ struct MainTabPage {
   }
 
   /**
-   * 动态题库项
+   * 带进度可视化的题库项
+   */
+  @Builder
+  QuestionBankItemWithProgress(progress: SubjectProgress) {
+    Column() {
+      Row() {
+        // 左侧图标
+        Column() {
+          Text(this.getSubjectEmoji(progress.subjectId))
+            .fontSize(24)
+        }
+        .width(48)
+        .height(48)
+        .borderRadius(ThemeConstants.RADIUS_MD)
+        .backgroundColor(progress.color + '20')
+        .justifyContent(FlexAlign.Center)
+
+        // 中间信息
+        Column() {
+          Row() {
+            Text(progress.subjectName)
+              .fontSize(ThemeConstants.FONT_SIZE_BASE)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeColors.TEXT_PRIMARY)
+              .maxLines(1)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+
+            // 掌握程度标签
+            Text(progress.masteryLevel)
+              .fontSize(10)
+              .fontColor(ThemeColors.WHITE)
+              .padding({ left: 8, right: 8, top: 2, bottom: 2 })
+              .backgroundColor(progress.masteryColor)
+              .borderRadius(10)
+          }
+          .width('100%')
+
+          // 进度条
+          Row() {
+            Progress({ value: progress.progress, total: 100, type: ProgressType.Linear })
+              .width('100%')
+              .height(6)
+              .color(progress.color)
+              .backgroundColor(ThemeColors.GRAY_200)
+              .borderRadius(3)
+          }
+          .width('100%')
+          .margin({ top: 8 })
+
+          // 统计信息
+          Row() {
+            Text(`${progress.completedCount}/${progress.totalCount} 题`)
+              .fontSize(ThemeConstants.FONT_SIZE_XS)
+              .fontColor(ThemeColors.TEXT_HINT)
+
+            Blank()
+
+            Text(`正确率 ${progress.accuracy}%`)
+              .fontSize(ThemeConstants.FONT_SIZE_XS)
+              .fontColor(progress.accuracy >= 70 ? ThemeColors.SUCCESS : ThemeColors.WARNING)
+          }
+          .width('100%')
+          .margin({ top: 4 })
+        }
+        .layoutWeight(1)
+        .margin({ left: ThemeConstants.SPACING_SM })
+        .alignItems(HorizontalAlign.Start)
+
+        // 右侧箭头
+        Image($r('app.media.Rightarrow'))
+          .width(16)
+          .height(16)
+          .fillColor(ThemeColors.TEXT_HINT)
+          .margin({ left: ThemeConstants.SPACING_SM })
+      }
+      .width('100%')
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACING_MD)
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+    .backgroundColor(ThemeColors.SURFACE)
+    .borderRadius(ThemeConstants.RADIUS_MD)
+    .border({ width: 1, color: ThemeColors.GRAY_200 })
+    .onClick(() => {
+      Router.goToPractice(progress.subjectId, 'sequence');
+    })
+  }
+
+  /**
+   * 动态题库项（保留兼容）
    */
   @Builder
   QuestionBankItemDynamic(subject: SubjectStats) {
