@@ -9,11 +9,13 @@ import { ThemeConstants } from '../theme/ThemeConstants';
 import { AppConstants } from '../common/constants/AppConstants';
 import { Logger } from '../common/utils/Logger';
 import { studyReportService, StudyReportData } from '../services/StudyReportService';
+import { promptAction } from '@kit.ArkUI';
 
 @Entry
 @Component
 struct StudyReportPage {
   @State isLoading: boolean = true;
+  @State isRefreshing: boolean = false;
   @State reportData: StudyReportData | null = null;
   
   private webController: webview.WebviewController = new webview.WebviewController();
@@ -57,10 +59,12 @@ struct StudyReportPage {
   }
 
   private async refreshData(): Promise<void> {
-    this.isLoading = true;
-    await this.loadData();
-    if (this.isWebReady && this.reportData) {
-      try {
+    if (this.isRefreshing) return;
+    this.isRefreshing = true;
+    
+    try {
+      this.reportData = await studyReportService.getReportData();
+      if (this.isWebReady && this.reportData) {
         const dataJson = JSON.stringify(this.reportData);
         const escapedJson = dataJson
           .replace(/\\/g, '\\\\')
@@ -68,9 +72,13 @@ struct StudyReportPage {
           .replace(/\n/g, '\\n')
           .replace(/\r/g, '\\r');
         this.webController.runJavaScript(`updateCharts('${escapedJson}')`);
-      } catch (error) {
-        Logger.error('[StudyReportPage] Failed to update charts', error as Error);
       }
+      promptAction.showToast({ message: '刷新成功', duration: 1500 });
+    } catch (error) {
+      Logger.error('[StudyReportPage] Failed to update charts', error as Error);
+      promptAction.showToast({ message: '刷新失败', duration: 1500 });
+    } finally {
+      this.isRefreshing = false;
     }
   }
 
@@ -93,13 +101,14 @@ struct StudyReportPage {
           .domStorageAccess(true)
           .fileAccess(true)
 
+        // 只在首次加载时显示全屏加载
         if (this.isLoading) {
           Column() {
             LoadingProgress().width(40).height(40).color(ThemeColors.PRIMARY)
           }
           .width('100%')
           .height('100%')
-          .backgroundColor('rgba(255, 255, 255, 0.8)')
+          .backgroundColor('rgba(255, 255, 255, 0.9)')
           .justifyContent(FlexAlign.Center)
         }
       }
@@ -128,11 +137,7 @@ struct StudyReportPage {
         .layoutWeight(1)
         .textAlign(TextAlign.Center)
 
-      Text('刷新')
-        .fontSize(14)
-        .fontColor(ThemeColors.PRIMARY)
-        .padding({ left: 12, right: 12 })
-        .onClick(() => { this.refreshData(); })
+      Row().width(48).height(48)
     }
     .width('100%')
     .height(56)

@@ -8,7 +8,7 @@ let storageReminder = new LocalStorage();
 @Component
 struct StudyReminderCard {
   @LocalStorageProp('todayCount') todayCount: number = 0;
-  @LocalStorageProp('targetCount') targetCount: number = 20;
+  @LocalStorageProp('targetCount') targetCount: number = 20; // 与App默认值一致
   @LocalStorageProp('isCheckedIn') isCheckedIn: boolean = false;
   @LocalStorageProp('streakDays') streakDays: number = 0;
   @LocalStorageProp('encourageText') encourageText: string = '📚 开始今天的学习吧！';

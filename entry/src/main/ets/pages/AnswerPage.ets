@@ -8,7 +8,7 @@ import { ThemeConstants } from '../theme/ThemeConstants';
 import { Question, QuestionOption, QuestionType } from '../common/types/QuestionTypes';
 import { getSubjectShortName, getSubjectColor } from '../data/SubjectData';
 import { questionService, QuestionQuery } from '../services/QuestionService';
-import { answerRecordService, AnswerRecordInput } from '../services/AnswerRecordService';
+import { answerRecordService, AnswerRecordInput, SubjectWrongStat } from '../services/AnswerRecordService';
 import { AppConstants } from '../common/constants/AppConstants';
 import { Logger } from '../common/utils/Logger';
 
@@ -78,6 +78,13 @@ struct AnswerPage {
 
   aboutToDisappear(): void {
     // 清除计时器
+    this.clearTimer();
+  }
+
+  /**
+   * 清除计时器
+   */
+  private clearTimer(): void {
     if (this.timerInterval !== -1) {
       clearInterval(this.timerInterval);
       this.timerInterval = -1;
@@ -101,6 +108,21 @@ struct AnswerPage {
       } else if (this.mode === 'single' && this.specifiedQuestionId) {
         // 单题模式
         await this.loadSingleQuestion(this.specifiedQuestionId);
+      } else if (this.mode === 'daily') {
+        // 每日一练：随机题目，数量=每日目标
+        await this.loadDailyQuestions();
+      } else if (this.mode === 'intensive') {
+        // 强化训练：100道全随机
+        await this.loadIntensiveQuestions();
+      } else if (this.mode === 'weakness') {
+        // 专项练习：根据错题数据智能出题
+        await this.loadWeaknessQuestions();
+      } else if (this.mode === 'important') {
+        // 高频重点：重要题目随机50道
+        await this.loadImportantQuestions();
+      } else if (this.mode === 'subject') {
+        // 科目强化：指定科目随机50题
+        await this.loadSubjectQuestions();
       } else {
         // 普通练习模式
         await this.loadNormalQuestions();
@@ -138,7 +160,7 @@ struct AnswerPage {
    */
   private async loadNormalQuestions(): Promise<void> {
     const query: QuestionQuery = {
-      limit: 9999  // 加载所有题目
+      // 不设置limit，加载全部题目
     };
 
     // 根据科目筛选
@@ -244,6 +266,8 @@ struct AnswerPage {
    * 时间到处理
    */
   private onTimeUp(): void {
+    // 清除计时器
+    this.clearTimer();
     // 显示时间到提示，然后返回
     AlertDialog.show({
       title: '⏱️ 时间到！',
@@ -276,6 +300,138 @@ struct AnswerPage {
     } else {
       this.questions = [];
     }
+  }
+
+  /**
+   * 每日一练：随机题目，默认20题
+   */
+  private async loadDailyQuestions(): Promise<void> {
+    const query: QuestionQuery = {
+      random: true,
+      limit: this.questionCount > 0 ? this.questionCount : 20 // 默认20题
+    };
+    this.questions = await questionService.getQuestions(query);
+  }
+
+  /**
+   * 强化训练：100道全随机综合题
+   */
+  private async loadIntensiveQuestions(): Promise<void> {
+    const query: QuestionQuery = {
+      random: true,
+      limit: 100
+    };
+    this.questions = await questionService.getQuestions(query);
+  }
+
+  /**
+   * 专项练习：根据错题数据智能出题，错的类别多的题目多
+   */
+  private async loadWeaknessQuestions(): Promise<void> {
+    // 获取错题统计，按科目分组
+    const wrongStats = await answerRecordService.getWrongQuestionsBySubject();
+    
+    if (wrongStats.length === 0) {
+      // 没有错题数据，随机出50题
+      const query: QuestionQuery = {
+        random: true,
+        limit: 50
+      };
+      this.questions = await questionService.getQuestions(query);
+      return;
+    }
+
+    // 计算总错题数
+    let totalWrong = 0;
+    wrongStats.forEach((stat: SubjectWrongStat) => {
+      totalWrong += stat.wrongCount;
+    });
+
+    // 按错题比例分配题目数量，总共50题
+    const totalQuestions = 50;
+    const allQuestions: Question[] = [];
+
+    for (const stat of wrongStats) {
+      // 按比例计算该科目应出的题目数量
+      const ratio = stat.wrongCount / totalWrong;
+      const count = Math.max(1, Math.round(totalQuestions * ratio));
+      
+      const query: QuestionQuery = {
+        subjectId: stat.subjectId,
+        random: true,
+        limit: count
+      };
+      const questions = await questionService.getQuestions(query);
+      allQuestions.push(...questions);
+    }
+
+    // 打乱顺序
+    this.questions = this.shuffleArray(allQuestions).slice(0, totalQuestions);
+  }
+
+  /**
+   * 高频重点：重要题目随机50道
+   */
+  private async loadImportantQuestions(): Promise<void> {
+    // 获取标记为重要的题目
+    const query: QuestionQuery = {
+      random: true,
+      limit: 50
+    };
+    // 优先获取高频错题和收藏题目
+    const wrongQuestions = await answerRecordService.getWrongQuestions();
+    const favoriteIds = await answerRecordService.getFavoriteQuestionIds();
+    
+    // 合并高频错题ID和收藏ID
+    const importantIds = new Set<string>();
+    
+    // 添加错误次数>=2的题目
+    wrongQuestions.filter(w => w.wrongCount >= 2).forEach(w => {
+      importantIds.add(w.questionId);
+    });
+    
+    // 添加收藏题目
+    favoriteIds.forEach((id: string) => {
+      importantIds.add(id);
+    });
+
+    if (importantIds.size >= 50) {
+      // 从重要题目中随机选50道
+      const idArray = Array.from(importantIds);
+      const shuffled = this.shuffleArray(idArray).slice(0, 50);
+      this.questions = await questionService.getQuestionsByIds(shuffled);
+    } else {
+      // 重要题目不足50道，补充随机题目
+      const importantQuestions = importantIds.size > 0 
+        ? await questionService.getQuestionsByIds(Array.from(importantIds))
+        : [];
+      
+      const remainingCount = 50 - importantQuestions.length;
+      if (remainingCount > 0) {
+        const randomQuestions = await questionService.getQuestions(query);
+        // 过滤掉已有的题目
+        const filtered = randomQuestions.filter((q: Question) => !importantIds.has(q.id));
+        this.questions = [...importantQuestions, ...filtered.slice(0, remainingCount)];
+      } else {
+        this.questions = importantQuestions;
+      }
+    }
+    
+    // 打乱顺序
+    this.questions = this.shuffleArray(this.questions);
+  }
+
+  /**
+   * 科目强化：指定科目随机50题
+   */
+  private async loadSubjectQuestions(): Promise<void> {
+    const limit = this.questionCount > 0 ? this.questionCount : 50;
+    const query: QuestionQuery = {
+      subjectId: this.subjectId,
+      random: true,
+      limit: limit
+    };
+    this.questions = await questionService.getQuestions(query);
   }
 
   /**
@@ -321,7 +477,7 @@ struct AnswerPage {
     if (!question) return;
 
     // 保存用户答案
-    const userAnswer = this.selectedOptions.sort().join(',');
+    const userAnswer = [...this.selectedOptions].sort().join(',');
     this.userAnswers.set(question.id, userAnswer);
 
     // 计算答题时间
@@ -353,17 +509,21 @@ struct AnswerPage {
    */
   private goToQuestion(index: number): void {
     if (index >= 0 && index < this.questions.length) {
+      const targetQuestion = this.questions[index];
+      const savedAnswer = this.userAnswers.get(targetQuestion.id);
+      
+      // 一次性设置所有状态，避免多次触发渲染
       this.currentIndex = index;
-      this.currentQuestion = this.questions[index];
-      this.selectedOptions = [];
-      this.showAnswer = false;
+      this.currentQuestion = targetQuestion;
       this.answerStartTime = Date.now();
-
-      // 恢复之前的答案（如果有）
-      const savedAnswer = this.userAnswers.get(this.currentQuestion.id);
+      
+      // 根据是否有保存的答案，一次性设置选项和显示状态
       if (savedAnswer) {
         this.selectedOptions = savedAnswer.split(',');
         this.showAnswer = true;
+      } else {
+        this.selectedOptions = [];
+        this.showAnswer = false;
       }
 
       // 检查收藏状态
@@ -376,17 +536,22 @@ struct AnswerPage {
    */
   private nextQuestion(): void {
     if (this.currentIndex < this.questions.length - 1) {
-      this.currentIndex++;
-      this.currentQuestion = this.questions[this.currentIndex];
-      this.selectedOptions = [];
-      this.showAnswer = false;
+      const nextIndex = this.currentIndex + 1;
+      const targetQuestion = this.questions[nextIndex];
+      const savedAnswer = this.userAnswers.get(targetQuestion.id);
+      
+      // 一次性设置所有状态，避免多次触发渲染
+      this.currentIndex = nextIndex;
+      this.currentQuestion = targetQuestion;
       this.answerStartTime = Date.now();
-
-      // 恢复之前的答案（如果有）
-      const savedAnswer = this.userAnswers.get(this.currentQuestion.id);
+      
+      // 根据是否有保存的答案，一次性设置选项和显示状态
       if (savedAnswer) {
         this.selectedOptions = savedAnswer.split(',');
         this.showAnswer = true;
+      } else {
+        this.selectedOptions = [];
+        this.showAnswer = false;
       }
 
       // 检查收藏状态
@@ -399,17 +564,22 @@ struct AnswerPage {
    */
   private prevQuestion(): void {
     if (this.currentIndex > 0) {
-      this.currentIndex--;
-      this.currentQuestion = this.questions[this.currentIndex];
-      this.selectedOptions = [];
-      this.showAnswer = false;
+      const prevIndex = this.currentIndex - 1;
+      const targetQuestion = this.questions[prevIndex];
+      const savedAnswer = this.userAnswers.get(targetQuestion.id);
+      
+      // 一次性设置所有状态，避免多次触发渲染
+      this.currentIndex = prevIndex;
+      this.currentQuestion = targetQuestion;
       this.answerStartTime = Date.now();
-
-      // 恢复之前的答案（如果有）
-      const savedAnswer = this.userAnswers.get(this.currentQuestion.id);
+      
+      // 根据是否有保存的答案，一次性设置选项和显示状态
       if (savedAnswer) {
         this.selectedOptions = savedAnswer.split(',');
         this.showAnswer = true;
+      } else {
+        this.selectedOptions = [];
+        this.showAnswer = false;
       }
 
       // 检查收藏状态
@@ -449,7 +619,8 @@ struct AnswerPage {
    */
   private isAnswerCorrect(): boolean {
     if (!this.currentQuestion) return false;
-    const userAnswer = this.selectedOptions.sort().join(',');
+    // 使用展开运算符创建副本，避免修改原数组
+    const userAnswer = [...this.selectedOptions].sort().join(',');
     return userAnswer === this.currentQuestion.answer;
   }
 
@@ -610,9 +781,10 @@ struct AnswerPage {
 
       // 收藏按钮
       Row() {
-        Text(this.isFavorite ? '⭐' : '☆')
-          .fontSize(ThemeConstants.FONT_SIZE_XL)
-          .fontColor(this.isFavorite ? ThemeColors.WARNING : ThemeColors.TEXT_HINT)
+        Image(this.isFavorite ? $r('app.media.AddedtoFavorites') : $r('app.media.Tobesaved'))
+          .width(24)
+          .height(24)
+          .objectFit(ImageFit.Contain)
       }
       .width(40)
       .height(40)
@@ -837,66 +1009,6 @@ struct AnswerPage {
       .padding(ThemeConstants.SPACING_MD)
       .backgroundColor(this.isAnswerCorrect() ? 'rgba(82, 196, 26, 0.1)' : 'rgba(255, 77, 79, 0.1)')
       .borderRadius(ThemeConstants.RADIUS_MD)
-
-      // 答案对比
-      Column() {
-        Row() {
-          Text('📝')
-            .fontSize(16)
-          Text(' 答案对比')
-            .fontSize(ThemeConstants.FONT_SIZE_BASE)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeColors.TEXT_PRIMARY)
-        }
-        .width('100%')
-
-        Row() {
-          Column() {
-            Text('你的答案')
-              .fontSize(ThemeConstants.FONT_SIZE_XS)
-              .fontColor(ThemeColors.TEXT_HINT)
-            Text(this.selectedOptions.sort().join(', '))
-              .fontSize(ThemeConstants.FONT_SIZE_MD)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(this.isAnswerCorrect() ? ThemeColors.SUCCESS : ThemeColors.ERROR)
-              .margin({ top: 4 })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Center)
-          .padding(ThemeConstants.SPACING_SM)
-          .backgroundColor(ThemeColors.GRAY_100)
-          .borderRadius(ThemeConstants.RADIUS_SM)
-
-          Text('→')
-            .fontSize(20)
-            .fontColor(ThemeColors.TEXT_HINT)
-            .margin({ left: 12, right: 12 })
-
-          Column() {
-            Text('正确答案')
-              .fontSize(ThemeConstants.FONT_SIZE_XS)
-              .fontColor(ThemeColors.TEXT_HINT)
-            Text(this.currentQuestion!.answer)
-              .fontSize(ThemeConstants.FONT_SIZE_MD)
-              .fontWeight(FontWeight.Bold)
-              .fontColor(ThemeColors.SUCCESS)
-              .margin({ top: 4 })
-          }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Center)
-          .padding(ThemeConstants.SPACING_SM)
-          .backgroundColor('rgba(82, 196, 26, 0.1)')
-          .borderRadius(ThemeConstants.RADIUS_SM)
-        }
-        .width('100%')
-        .margin({ top: ThemeConstants.SPACING_SM })
-      }
-      .width('100%')
-      .padding(ThemeConstants.SPACING_MD)
-      .margin({ top: ThemeConstants.SPACING_SM })
-      .backgroundColor(ThemeColors.SURFACE)
-      .borderRadius(ThemeConstants.RADIUS_MD)
-      .border({ width: 1, color: ThemeColors.GRAY_200 })
 
       // 解析
       Column() {

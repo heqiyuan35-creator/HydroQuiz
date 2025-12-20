@@ -15,7 +15,7 @@ const PREFERENCES_NAME: string = 'hydro_quiz_prefs';
  */
 class WidgetUpdateData {
   todayCount: number = 0;
-  targetCount: number = 20;
+  targetCount: number = 20; // 与App默认值一致
   correctCount: number = 0;
   wrongCount: number = 0;
   accuracy: number = 0;
@@ -151,15 +151,21 @@ class WidgetDataService {
    * 更新每日目标
    */
   async updateDailyTarget(target: number): Promise<void> {
-    if (!this.context) return;
+    if (!this.context) {
+      Logger.error('[WidgetDataService] Context not initialized when updating daily target');
+      return;
+    }
 
     try {
       const pref = preferences.getPreferencesSync(this.context, { name: PREFERENCES_NAME });
       pref.putSync('dailyTarget', target);
       await pref.flush();
 
+      Logger.info(`[WidgetDataService] Daily target saved to preferences: ${target}`);
+
       // 获取完整数据并更新卡片
       const data = await this.getWidgetData();
+      Logger.info(`[WidgetDataService] Widget data for update: todayCount=${data.todayCount}, targetCount=${data.targetCount}`);
       await this.updateAllWidgets(data);
 
       Logger.info(`[WidgetDataService] Daily target updated to ${target}`);
@@ -210,6 +216,7 @@ class WidgetDataService {
    */
   async getWidgetData(): Promise<WidgetData> {
     if (!this.context) {
+      Logger.error('[WidgetDataService] Context not initialized when getting widget data');
       return this.getDefaultData();
     }
 
@@ -217,12 +224,13 @@ class WidgetDataService {
       const pref = preferences.getPreferencesSync(this.context, { name: PREFERENCES_NAME });
       const today = new Date().toDateString();
       const lastDate = pref.getSync('lastStudyDate', '') as string;
+      const dailyTarget = pref.getSync('dailyTarget', 20) as number; // 默认20与App一致
 
-      // 如果不是今天的数据，返回默认值
+      // 如果不是今天的数据，返回默认值（但保留dailyTarget）
       if (lastDate !== today) {
         return {
           todayCount: 0,
-          targetCount: pref.getSync('dailyTarget', 20) as number,
+          targetCount: dailyTarget,
           correctCount: 0,
           wrongCount: 0,
           isCheckedIn: false,
@@ -233,7 +241,7 @@ class WidgetDataService {
 
       return {
         todayCount: pref.getSync('todayAnswerCount', 0) as number,
-        targetCount: pref.getSync('dailyTarget', 20) as number,
+        targetCount: dailyTarget,
         correctCount: pref.getSync('todayCorrectCount', 0) as number,
         wrongCount: pref.getSync('todayWrongCount', 0) as number,
         isCheckedIn: pref.getSync('isCheckedInToday', false) as boolean,
@@ -252,7 +260,7 @@ class WidgetDataService {
   private getDefaultData(): WidgetData {
     return {
       todayCount: 0,
-      targetCount: 20,
+      targetCount: 20, // 与App默认值一致
       correctCount: 0,
       wrongCount: 0,
       isCheckedIn: false,

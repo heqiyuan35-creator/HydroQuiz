@@ -331,13 +331,14 @@ struct MockExamPage {
       const duration = Math.floor((Date.now() - this.startTime) / 1000);
       result.duration = duration;
 
-      // 保存考试记录
+      // 保存考试记录（包含完整题目数据）
       const recordId = await mockExamService.saveExamRecord(
         result,
         this.examConfig,
         this.questions.map(q => q.id),
         this.userAnswers,
-        duration
+        duration,
+        this.questions
       );
 
       // 清除进度

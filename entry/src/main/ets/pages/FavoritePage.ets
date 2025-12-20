@@ -176,8 +176,10 @@ struct FavoritePage {
   @Builder
   EmptyState() {
     Column() {
-      Text('⭐')
-        .fontSize(64)
+      Image($r('app.media.AddedtoFavorites'))
+        .width(64)
+        .height(64)
+        .objectFit(ImageFit.Contain)
 
       Text('暂无收藏')
         .fontSize(ThemeConstants.FONT_SIZE_XL)
@@ -240,8 +242,10 @@ struct FavoritePage {
         Blank()
 
         // 收藏图标
-        Text('⭐')
-          .fontSize(ThemeConstants.FONT_SIZE_MD)
+        Image($r('app.media.AddedtoFavorites'))
+          .width(18)
+          .height(18)
+          .objectFit(ImageFit.Contain)
       }
       .width('100%')
 

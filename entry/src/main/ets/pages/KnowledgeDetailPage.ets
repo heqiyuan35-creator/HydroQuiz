@@ -3,11 +3,15 @@
  * HydroQuiz - 水利工程检测员刷题宝
  */
 import { router, promptAction } from '@kit.ArkUI';
+import { abilityAccessCtrl, common, Permissions } from '@kit.AbilityKit';
 import { KnowledgeArticle, ContentType } from '../common/types/KnowledgeTypes';
 import { KnowledgeService } from '../services/KnowledgeService';
 import { TextToSpeechService, TTSState, TTSCallback } from '../services/TextToSpeechService';
+import { speechRecognitionService, SpeechRecognitionCallback } from '../services/SpeechRecognitionService';
+import { textRecognitionService, TextRecognitionCallback } from '../services/TextRecognitionService';
 import { ThemeColors } from '../theme/ThemeColors';
 import { ThemeConstants } from '../theme/ThemeConstants';
+import { Logger } from '../common/utils/Logger';
 
 interface RouteParams {
   articleId: string;
@@ -34,6 +38,10 @@ struct KnowledgeDetailPage {
   @State noteContent: string = '';
   @State allArticles: KnowledgeArticle[] = [];
   @State currentIndex: number = -1;
+  @State isRecording: boolean = false;
+  @State isRecognizing: boolean = false;
+  @State recordingText: string = '';
+  private hasMicPermission: boolean = false;
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
   private ttsService: TextToSpeechService = TextToSpeechService.getInstance();
   private startTime: number = 0;
@@ -100,6 +108,103 @@ struct KnowledgeDetailPage {
       promptAction.showToast({ message: '笔记已保存', duration: 1500 });
       this.showNoteDialog = false;
     }
+  }
+
+  /**
+   * 请求麦克风权限
+   */
+  private async requestMicPermission(): Promise<boolean> {
+    try {
+      const context = getContext(this) as common.UIAbilityContext;
+      const atManager = abilityAccessCtrl.createAtManager();
+      const permissions: Permissions[] = ['ohos.permission.MICROPHONE'];
+      const result = await atManager.requestPermissionsFromUser(context, permissions);
+      const grantStatus = result.authResults[0];
+      this.hasMicPermission = grantStatus === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED;
+      return this.hasMicPermission;
+    } catch (error) {
+      Logger.error('[KnowledgeDetailPage] Request mic permission error', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 开始语音录入
+   */
+  private async startVoiceInput(): Promise<void> {
+    if (!this.hasMicPermission) {
+      const granted = await this.requestMicPermission();
+      if (!granted) {
+        promptAction.showToast({ message: '需要麦克风权限才能使用语音录入', duration: 2000 });
+        return;
+      }
+    }
+    this.recordingText = '';
+    const callback: SpeechRecognitionCallback = {
+      onStart: () => { Logger.info('[KnowledgeDetailPage] Voice recording started'); },
+      onResult: (text: string, isFinal: boolean) => {
+        this.recordingText = text;
+      },
+      onComplete: (text: string) => {
+        this.isRecording = false;
+        if (text && text.length > 0) {
+          this.noteContent = this.noteContent.length > 0 ? this.noteContent + '\n' + text : text;
+          promptAction.showToast({ message: '语音识别完成', duration: 1500 });
+        }
+        this.recordingText = '';
+      },
+      onError: (errorCode: number, errorMessage: string) => {
+        this.isRecording = false;
+        this.recordingText = '';
+        promptAction.showToast({ message: `语音识别失败: ${errorMessage}`, duration: 2000 });
+      }
+    };
+    const started = await speechRecognitionService.startRecording(callback);
+    if (started) {
+      this.isRecording = true;
+    } else {
+      promptAction.showToast({ message: '启动语音识别失败', duration: 2000 });
+    }
+  }
+
+  /**
+   * 停止语音录入
+   */
+  private stopVoiceInput(): void {
+    speechRecognitionService.stopRecording();
+  }
+
+  /**
+   * 拍照识别文字
+   */
+  private async startOcrRecognition(): Promise<void> {
+    if (this.isRecognizing) {
+      return;
+    }
+    this.isRecognizing = true;
+    promptAction.showToast({ message: '请选择图片...', duration: 1500 });
+
+    const callback: TextRecognitionCallback = {
+      onSuccess: (text: string) => {
+        this.isRecognizing = false;
+        if (text && text.length > 0) {
+          if (this.noteContent.length > 0) {
+            this.noteContent = this.noteContent + '\n' + text;
+          } else {
+            this.noteContent = text;
+          }
+          promptAction.showToast({ message: '文字识别成功', duration: 1500 });
+        }
+      },
+      onError: (errorCode: number, errorMessage: string) => {
+        this.isRecognizing = false;
+        if (errorCode !== 1001) {
+          promptAction.showToast({ message: `识别失败: ${errorMessage}`, duration: 2000 });
+        }
+      }
+    };
+
+    await textRecognitionService.selectAndRecognize(callback);
   }
 
   build() {
@@ -360,25 +465,87 @@ struct KnowledgeDetailPage {
       }
       .width('100%').padding({ left: 16, right: 16, bottom: 12 })
 
-      TextArea({ text: this.noteContent, placeholder: '记录你的学习心得、易错点、解题技巧...' })
-        .width('100%').height(200).fontSize(15).fontColor(EYE_CARE_TEXT_PRIMARY)
-        .placeholderColor(EYE_CARE_TEXT_HINT).backgroundColor(EYE_CARE_BG)
-        .padding(12).borderRadius(8).margin({ left: 16, right: 16 })
-        .onChange((value: string) => { this.noteContent = value; })
+      Stack() {
+        TextArea({ text: this.noteContent, placeholder: '记录你的学习心得、易错点、解题技巧...' })
+          .width('100%').height(200).fontSize(15).fontColor(EYE_CARE_TEXT_PRIMARY)
+          .placeholderColor(EYE_CARE_TEXT_HINT).backgroundColor(EYE_CARE_BG)
+          .padding(12).borderRadius(8)
+          .onChange((value: string) => { this.noteContent = value; })
 
+        // 录音状态覆盖显示
+        if (this.isRecording) {
+          Column() {
+            Row({ space: 8 }) {
+              Circle().width(10).height(10).fill('#FF4D4F')
+              Text('正在录音...').fontSize(15).fontColor('#FF4D4F').fontWeight(FontWeight.Medium)
+            }
+            if (this.recordingText.length > 0) {
+              Text(this.recordingText)
+                .fontSize(14)
+                .fontColor(EYE_CARE_TEXT_SECONDARY)
+                .margin({ top: 8 })
+                .maxLines(3)
+                .textAlign(TextAlign.Center)
+            }
+            Button('停止录音')
+              .fontSize(14)
+              .fontColor('#FFFFFF')
+              .backgroundColor('#FF4D4F')
+              .borderRadius(20)
+              .height(36)
+              .margin({ top: 12 })
+              .onClick(() => { this.stopVoiceInput(); })
+          }
+          .width('100%')
+          .height('100%')
+          .justifyContent(FlexAlign.Center)
+          .backgroundColor('rgba(250, 247, 240, 0.95)')
+          .borderRadius(8)
+        }
+      }
+      .width('100%')
+      .height(200)
+      .margin({ left: 16, right: 16 })
+
+      // 拍照识别和语音录入按钮
       Row({ space: 24 }) {
         Column() {
-          Text('📷').fontSize(24)
-          Text('拍照识别').fontSize(11).fontColor(EYE_CARE_TEXT_HINT).margin({ top: 4 })
+          Image($r('app.media.Camera'))
+            .width(24)
+            .height(24)
+            .objectFit(ImageFit.Contain)
+          Text(this.isRecognizing ? '识别中' : '拍照识别')
+            .fontSize(11)
+            .fontColor(this.isRecognizing ? '#FAAD14' : EYE_CARE_ACCENT)
+            .margin({ top: 4 })
         }
-        .onClick(() => { promptAction.showToast({ message: '功能开发中...', duration: 1500 }); })
+        .onClick(() => {
+          if (!this.isRecognizing) {
+            this.startOcrRecognition();
+          }
+        })
+
         Column() {
-          Text('🎤').fontSize(24)
-          Text('语音录入').fontSize(11).fontColor(EYE_CARE_TEXT_HINT).margin({ top: 4 })
+          Image($r('app.media.Recording'))
+            .width(24)
+            .height(24)
+            .objectFit(ImageFit.Contain)
+          Text(this.isRecording ? '录音中' : '语音录入')
+            .fontSize(11)
+            .fontColor(this.isRecording ? '#FF4D4F' : EYE_CARE_ACCENT)
+            .margin({ top: 4 })
         }
-        .onClick(() => { promptAction.showToast({ message: '功能开发中...', duration: 1500 }); })
+        .onClick(() => {
+          if (!this.isRecording) {
+            this.startVoiceInput();
+          } else {
+            this.stopVoiceInput();
+          }
+        })
       }
-      .width('100%').padding({ left: 16, right: 16, top: 16, bottom: 24 })
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 16, bottom: 24 })
+      .justifyContent(FlexAlign.Start)
     }
     .width('100%').backgroundColor(EYE_CARE_SURFACE)
     .borderRadius({ topLeft: 20, topRight: 20 }).position({ x: 0, y: '50%' })

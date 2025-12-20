@@ -217,7 +217,7 @@ class UserService {
       return 50;
     }
     try {
-      const goal = await this.preferences.get('dailyGoal', 50) as number;
+      const goal = await this.preferences.get('dailyGoal', 20) as number;
       return goal;
     } catch (error) {
       Logger.error('[UserService] Get daily goal failed', error as Error);
@@ -264,11 +264,14 @@ class UserService {
   }
 
   /**
-   * 获取今日打卡日期
+   * 获取今日打卡日期（本地时间，格式：YYYY-MM-DD）
    */
   private getTodayDateString(): string {
     const now = new Date();
-    return `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   /**

@@ -6,7 +6,7 @@ import { relationalStore } from '@kit.ArkData';
 import { databaseService } from '../data/database/DatabaseService';
 import { questionService } from './QuestionService';
 import { answerRecordService } from './AnswerRecordService';
-import { Question, QuestionType } from '../common/types/QuestionTypes';
+import { Question, QuestionType, QuestionOption } from '../common/types/QuestionTypes';
 import { Logger } from '../common/utils/Logger';
 import { achievementService } from './AchievementService';
 
@@ -109,6 +109,19 @@ export interface MockExamRecord {
 }
 
 /**
+ * 存储的题目数据（精简版）
+ */
+interface StoredQuestionData {
+  id: string;
+  type: QuestionType;
+  subjectId: string;
+  content: string;
+  options: QuestionOption[];
+  answer: string;
+  analysis: string;
+}
+
+/**
  * 考试配置预设（不含 subjectId）
  */
 export interface ExamPreset {
@@ -200,6 +213,9 @@ class MockExamService {
       } catch (e) { /* 字段已存在 */ }
       try {
         await store.executeSql('ALTER TABLE exam_records ADD COLUMN marked_ids TEXT');
+      } catch (e) { /* 字段已存在 */ }
+      try {
+        await store.executeSql('ALTER TABLE exam_records ADD COLUMN questions_data TEXT');
       } catch (e) { /* 字段已存在 */ }
       
       Logger.info('[MockExamService] Tables initialized');
@@ -568,7 +584,8 @@ class MockExamService {
     config: ExamConfig,
     questionIds: string[],
     answers: Map<string, string>,
-    duration: number
+    duration: number,
+    questions?: Question[]
   ): Promise<string> {
     try {
       const store = databaseService.getStore();
@@ -576,6 +593,24 @@ class MockExamService {
       
       const answersObj: Record<string, string> = {};
       answers.forEach((v, k) => { answersObj[k] = v; });
+
+      // 序列化题目数据（只保存必要字段）
+      let questionsDataStr = '';
+      if (questions && questions.length > 0) {
+        const questionsData: StoredQuestionData[] = questions.map(q => {
+          const data: StoredQuestionData = {
+            id: q.id,
+            type: q.type,
+            subjectId: q.subjectId,
+            content: q.content,
+            options: q.options,
+            answer: q.answer,
+            analysis: q.analysis || ''
+          };
+          return data;
+        });
+        questionsDataStr = JSON.stringify(questionsData);
+      }
       
       const valueBucket: relationalStore.ValuesBucket = {
         id,
@@ -588,7 +623,8 @@ class MockExamService {
         time_limit: config.timeLimit,
         create_time: Date.now(),
         question_ids: JSON.stringify(questionIds),
-        answers: JSON.stringify(answersObj)
+        answers: JSON.stringify(answersObj),
+        questions_data: questionsDataStr
       };
       
       await store.insert('exam_records', valueBucket);
@@ -619,7 +655,9 @@ class MockExamService {
   private async updateTodayStatisticsForExam(totalCount: number, correctCount: number): Promise<void> {
     try {
       const store = databaseService.getStore();
-      const today = new Date().toISOString().split('T')[0];
+      // 使用本地时间，格式：YYYY-MM-DD
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const id = `stat_${today}`;
 
       Logger.info(`[MockExamService] Updating today stats for exam: date=${today}, answered=${totalCount}, correct=${correctCount}`);

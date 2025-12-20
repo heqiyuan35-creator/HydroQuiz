@@ -4,16 +4,25 @@
  */
 import { relationalStore } from '@kit.ArkData';
 import { databaseService } from '../data/database/DatabaseService';
-import { AnswerRecord, WrongQuestion, FavoriteQuestion } from '../common/types/QuestionTypes';
+import { AnswerRecord, WrongQuestion, FavoriteQuestion, Question } from '../common/types/QuestionTypes';
 import { Logger } from '../common/utils/Logger';
 import { widgetDataService } from './WidgetDataService';
 import { achievementService } from './AchievementService';
+import { questionService } from './QuestionService';
 
 /**
  * 生成唯一ID
  */
 function generateId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substring(2);
+}
+
+/**
+ * 科目错题统计
+ */
+export interface SubjectWrongStat {
+  subjectId: string;
+  wrongCount: number;
 }
 
 /**
@@ -147,7 +156,9 @@ class AnswerRecordService {
   async getTodayStatistics(): Promise<TodayStatistics> {
     try {
       const store = databaseService.getStore();
-      const today = new Date().toISOString().split('T')[0];
+      // 使用本地时间，格式：YYYY-MM-DD
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
       const predicates = new relationalStore.RdbPredicates('study_statistics');
       predicates.equalTo('date', today);
@@ -196,8 +207,8 @@ class AnswerRecordService {
 
       while (resultSet.goToNextRow()) {
         const dateStr = resultSet.getString(resultSet.getColumnIndex('date'));
-        const recordDate = new Date(dateStr);
-        const expected = expectedDate.toISOString().split('T')[0];
+        // 使用本地时间格式比较
+        const expected = `${expectedDate.getFullYear()}-${String(expectedDate.getMonth() + 1).padStart(2, '0')}-${String(expectedDate.getDate()).padStart(2, '0')}`;
 
         if (dateStr === expected) {
           streak++;
@@ -221,7 +232,9 @@ class AnswerRecordService {
   private async updateTodayStatistics(isCorrect: boolean): Promise<void> {
     try {
       const store = databaseService.getStore();
-      const today = new Date().toISOString().split('T')[0];
+      // 使用本地时间，格式：YYYY-MM-DD
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       const id = `stat_${today}`;
 
       const predicates = new relationalStore.RdbPredicates('study_statistics');
@@ -403,6 +416,41 @@ class AnswerRecordService {
       return wrongQuestions.map((wq: WrongQuestion) => wq.questionId);
     } catch (error) {
       Logger.error('[AnswerRecordService] Failed to get wrong question ids', error as Error);
+      return [];
+    }
+  }
+
+  /**
+   * 按科目统计错题数量
+   */
+  async getWrongQuestionsBySubject(): Promise<SubjectWrongStat[]> {
+    try {
+      const wrongQuestions = await this.getWrongQuestions();
+      if (wrongQuestions.length === 0) {
+        return [];
+      }
+
+      // 获取所有错题的详细信息
+      const questionIds = wrongQuestions.map((wq: WrongQuestion) => wq.questionId);
+      const questions = await questionService.getQuestionsByIds(questionIds);
+
+      // 按科目分组统计
+      const subjectMap = new Map<string, number>();
+      questions.forEach((q: Question) => {
+        const current = subjectMap.get(q.subjectId) || 0;
+        subjectMap.set(q.subjectId, current + 1);
+      });
+
+      // 转换为数组并按错题数量降序排列
+      const result: SubjectWrongStat[] = [];
+      subjectMap.forEach((count: number, subjectId: string) => {
+        result.push({ subjectId, wrongCount: count });
+      });
+      result.sort((a, b) => b.wrongCount - a.wrongCount);
+
+      return result;
+    } catch (error) {
+      Logger.error('[AnswerRecordService] Failed to get wrong questions by subject', error as Error);
       return [];
     }
   }

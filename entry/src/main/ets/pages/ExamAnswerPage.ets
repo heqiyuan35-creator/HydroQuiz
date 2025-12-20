@@ -50,20 +50,60 @@ struct ExamAnswerPage {
       if (resultSet.goToNextRow()) {
         const questionIdsStr = resultSet.getString(resultSet.getColumnIndex('question_ids'));
         const answersStr = resultSet.getString(resultSet.getColumnIndex('answers'));
+        
+        // 尝试获取存储的题目数据
+        let questionsDataStr = '';
+        try {
+          const colIndex = resultSet.getColumnIndex('questions_data');
+          if (colIndex >= 0) {
+            questionsDataStr = resultSet.getString(colIndex) || '';
+          }
+        } catch (e) { /* 字段不存在 */ }
 
-        let questionIds: string[] = [];
         let answersObj: Record<string, string> = {};
-
-        try { questionIds = JSON.parse(questionIdsStr); } catch (e) { /* ignore */ }
         try { answersObj = JSON.parse(answersStr); } catch (e) { /* ignore */ }
-
-        // 加载题目
-        this.questions = await questionService.getQuestionsByIds(questionIds);
 
         // 恢复用户答案
         Object.keys(answersObj).forEach(k => {
           this.userAnswers.set(k, answersObj[k]);
         });
+
+        // 优先从存储的题目数据加载
+        if (questionsDataStr) {
+          try {
+            const questionsData = JSON.parse(questionsDataStr) as Question[];
+            this.questions = questionsData.map(q => {
+              const question: Question = {
+                id: q.id,
+                type: q.type,
+                subjectId: q.subjectId,
+                chapter: '',
+                content: q.content,
+                options: q.options,
+                answer: q.answer,
+                analysis: q.analysis || '',
+                difficulty: 1,
+                tags: [],
+                createTime: 0,
+                updateTime: 0
+              };
+              return question;
+            });
+            Logger.info(`[ExamAnswerPage] Loaded ${this.questions.length} questions from stored data`);
+          } catch (e) {
+            Logger.error('[ExamAnswerPage] Failed to parse questions data', e as Error);
+          }
+        }
+
+        // 如果没有存储的题目数据，从题库加载（兼容旧数据）
+        if (this.questions.length === 0) {
+          let questionIds: string[] = [];
+          try { questionIds = JSON.parse(questionIdsStr); } catch (e) { /* ignore */ }
+          if (questionIds.length > 0) {
+            this.questions = await questionService.getQuestionsByIds(questionIds);
+            Logger.info(`[ExamAnswerPage] Loaded ${this.questions.length} questions from question bank`);
+          }
+        }
 
         if (this.questions.length > 0) {
           this.setCurrentQuestion(0);

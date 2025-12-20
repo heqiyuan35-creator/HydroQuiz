@@ -8,7 +8,7 @@ let storageProgress = new LocalStorage();
 @Component
 struct StudyProgressCard {
   @LocalStorageProp('todayCount') todayCount: number = 0;
-  @LocalStorageProp('targetCount') targetCount: number = 20;
+  @LocalStorageProp('targetCount') targetCount: number = 20; // 与App默认值一致
   @LocalStorageProp('correctCount') correctCount: number = 0;
   @LocalStorageProp('wrongCount') wrongCount: number = 0;
   @LocalStorageProp('accuracy') accuracy: number = 0;

@@ -110,12 +110,12 @@ struct AboutPage {
               .width('100%')
               .margin({ bottom: ThemeConstants.SPACING_SM })
 
-            this.FeatureItem('📚', '海量题库', '覆盖7大考试科目，3000+精选真题，题目持续更新')
-            this.FeatureItem('📝', '多种练习模式', '顺序练习、随机练习、错题巩固、收藏复习，满足不同学习需求')
-            this.FeatureItem('📊', '智能学习统计', '实时记录学习进度，智能分析薄弱知识点，精准提升')
-            this.FeatureItem('📋', '真题模拟考试', '还原真实考试环境，限时答题，考前实战演练')
-            this.FeatureItem('📕', '错题本管理', '自动收录错题，支持分类查看和针对性练习')
-            this.FeatureItem('⭐', '题目收藏', '一键收藏重点难点，随时回顾巩固')
+            this.FeatureItem($r('app.media.Questionbank'), '海量题库', '覆盖7大考试科目，3000+精选真题，题目持续更新')
+            this.FeatureItem($r('app.media.Edit'), '多种练习模式', '顺序练习、随机练习、错题巩固、收藏复习，满足不同学习需求')
+            this.FeatureItem($r('app.media.Statistics'), '智能学习统计', '实时记录学习进度，智能分析薄弱知识点，精准提升')
+            this.FeatureItem($r('app.media.Exam'), '真题模拟考试', '还原真实考试环境，限时答题，考前实战演练')
+            this.FeatureItem($r('app.media.WrongQuestion'), '错题本管理', '自动收录错题，支持分类查看和针对性练习')
+            this.FeatureItem($r('app.media.AddedtoFavorites'), '题目收藏', '一键收藏重点难点，随时回顾巩固')
           }
           .width('100%')
           .padding(ThemeConstants.SPACING_MD)
@@ -176,12 +176,13 @@ struct AboutPage {
   }
 
   @Builder
-  FeatureItem(icon: string, title: string, desc: string) {
+  FeatureItem(icon: Resource, title: string, desc: string) {
     Row() {
-      Text(icon)
-        .fontSize(22)
-        .width(36)
-        .fontColor($r('app.color.text_primary'))
+      Image(icon)
+        .width(22)
+        .height(22)
+        .objectFit(ImageFit.Contain)
+        .margin({ left: 7, right: 7 })
 
       Column() {
         Text(title)

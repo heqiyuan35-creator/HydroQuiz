@@ -2,7 +2,7 @@
  * 模拟考试历史记录页面
  * HydroQuiz - 水利工程检测员刷题宝
  */
-import { Router } from '../router/Router';
+import { Router, RouteParams } from '../router/Router';
 import { ThemeColors } from '../theme/ThemeColors';
 import { ThemeConstants } from '../theme/ThemeConstants';
 import { AppConstants } from '../common/constants/AppConstants';
@@ -113,10 +113,11 @@ struct MockExamHistoryPage {
             this.RecordList()
           }
           .width('100%')
-          .padding({ left: 16, right: 16, bottom: 24 })
+          .padding({ left: 16, right: 16, top: 16, bottom: 24 })
         }
         .scrollBar(BarState.Off)
         .layoutWeight(1)
+        .align(Alignment.Top)
       }
     }
     .width('100%')
@@ -165,8 +166,10 @@ struct MockExamHistoryPage {
   @Builder
   EmptyState() {
     Column() {
-      Text('📋')
-        .fontSize(64)
+      Image($r('app.media.Exam'))
+        .width(64)
+        .height(64)
+        .objectFit(ImageFit.Contain)
       Text('暂无考试记录')
         .fontSize(16)
         .fontColor(ThemeColors.TEXT_SECONDARY)
@@ -202,7 +205,6 @@ struct MockExamHistoryPage {
     }
     .width('100%')
     .padding(16)
-    .margin({ top: 16 })
     .backgroundColor(ThemeColors.SURFACE)
     .borderRadius(12)
     .justifyContent(FlexAlign.SpaceAround)
@@ -304,5 +306,11 @@ struct MockExamHistoryPage {
     .margin({ bottom: 10 })
     .backgroundColor(ThemeColors.SURFACE)
     .borderRadius(12)
+    .onClick(() => {
+      // 点击查看考试答题详情
+      const params: RouteParams = {};
+      params['examRecordId'] = record.id as Object;
+      Router.push('pages/ExamAnswerPage', params);
+    })
   }
 }

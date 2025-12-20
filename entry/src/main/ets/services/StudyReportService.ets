@@ -248,7 +248,8 @@ class StudyReportService {
         date.setDate(date.getDate() - i);
         date.setHours(0, 0, 0, 0);
         
-        const dateStr = date.toISOString().split('T')[0];
+        // 使用本地时间格式
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         const dayStart = date.getTime();
         const dayEnd = dayStart + 24 * 60 * 60 * 1000;
 

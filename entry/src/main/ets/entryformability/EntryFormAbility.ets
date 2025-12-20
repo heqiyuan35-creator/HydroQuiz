@@ -23,7 +23,7 @@ class StudyReminderData {
 
 class StudyProgressData {
   todayCount: number = 0;
-  targetCount: number = 20;
+  targetCount: number = 20; // 与App默认值一致
   correctCount: number = 0;
   wrongCount: number = 0;
   accuracy: number = 0;
@@ -35,7 +35,7 @@ class StudyProgressData {
 
 class FormUpdateData {
   todayCount: number = 0;
-  targetCount: number = 20;
+  targetCount: number = 20; // 与App默认值一致
   correctCount: number = 0;
   wrongCount: number = 0;
   accuracy: number = 0;
@@ -201,7 +201,7 @@ export default class EntryFormAbility extends FormExtensionAbility {
       // 如果不是今天的数据，重置今日统计
       if (lastStudyDate !== today) {
         result.todayCount = 0;
-        result.targetCount = pref.getSync('dailyTarget', 20) as number;
+        result.targetCount = pref.getSync('dailyTarget', 20) as number; // 与App默认值一致
         result.correctCount = 0;
         result.wrongCount = 0;
         result.isCheckedIn = false;
@@ -211,7 +211,7 @@ export default class EntryFormAbility extends FormExtensionAbility {
       }
 
       result.todayCount = pref.getSync('todayAnswerCount', 0) as number;
-      result.targetCount = pref.getSync('dailyTarget', 20) as number;
+      result.targetCount = pref.getSync('dailyTarget', 20) as number; // 与App默认值一致
       result.correctCount = pref.getSync('todayCorrectCount', 0) as number;
       result.wrongCount = pref.getSync('todayWrongCount', 0) as number;
       result.isCheckedIn = pref.getSync('isCheckedInToday', false) as boolean;

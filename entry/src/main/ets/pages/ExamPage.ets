@@ -153,7 +153,7 @@ struct ExamPage {
   private saveCurrentAnswer(): void {
     if (this.selectedOptions.length > 0) {
       const question = this.questions[this.currentIndex];
-      const answer = this.selectedOptions.sort().join(',');
+      const answer = [...this.selectedOptions].sort().join(',');
       this.userAnswers.set(question.id, answer);
       // 更新答题状态
       this.answeredIndexMap.set(this.currentIndex, 3); // 3 = 已答
@@ -389,8 +389,10 @@ struct ExamPage {
 
       // 考试信息卡片
       Column() {
-        Text('📋')
-          .fontSize(64)
+        Image($r('app.media.Exam'))
+          .width(64)
+          .height(64)
+          .objectFit(ImageFit.Contain)
           .margin({ top: ThemeConstants.SPACING_2XL })
 
         Text('模拟考试')
@@ -401,10 +403,10 @@ struct ExamPage {
 
         // 考试规则
         Column() {
-          this.RuleItem('📝', '题目数量', `${this.examConfig.totalQuestions} 题`)
-          this.RuleItem('⏱️', '考试时间', `${this.examConfig.timeLimit} 分钟`)
-          this.RuleItem('✅', '及格分数', `${this.examConfig.passScore} 分`)
-          this.RuleItem('🎯', '题型', '单选、多选、判断')
+          this.RuleItem($r('app.media.Edit'), '题目数量', `${this.examConfig.totalQuestions} 题`)
+          this.RuleItem($r('app.media.Calendar'), '考试时间', `${this.examConfig.timeLimit} 分钟`)
+          this.RuleItem($r('app.media.right'), '及格分数', `${this.examConfig.passScore} 分`)
+          this.RuleItem($r('app.media.Precise'), '题型', '单选、多选、判断')
         }
         .width('100%')
         .padding(ThemeConstants.SPACING_MD)
@@ -466,11 +468,13 @@ struct ExamPage {
   }
 
   @Builder
-  RuleItem(icon: string, label: string, value: string) {
+  RuleItem(icon: Resource, label: string, value: string) {
     Row() {
-      Text(icon)
-        .fontSize(20)
-        .width(32)
+      Image(icon)
+        .width(20)
+        .height(20)
+        .objectFit(ImageFit.Contain)
+        .margin({ right: 12 })
 
       Text(label)
         .fontSize(ThemeConstants.FONT_SIZE_BASE)

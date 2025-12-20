@@ -25,7 +25,7 @@ export interface RecommendCard {
   type: RecommendType;
   title: string;
   subtitle: string;
-  icon: string;
+  icon: Resource;
   count: number;
   color: string;
   subjectId?: string;
@@ -98,9 +98,9 @@ class SmartRecommendService {
           type: RecommendType.WRONG_REVIEW,
           title: '错题回顾',
           subtitle: '巩固薄弱知识点',
-          icon: '📕',
+          icon: $r('app.media.WrongQuestion'),
           count: Math.min(wrongCount, 20),
-          color: '#FF6B6B'
+          color: '#E8636C'
         };
         cards.push(wrongCard);
       }
@@ -112,9 +112,9 @@ class SmartRecommendService {
           type: RecommendType.WEAK_POINT,
           title: '薄弱攻克',
           subtitle: weakSubject.subjectName,
-          icon: '🎯',
+          icon: $r('app.media.Precise'),
           count: 15,
-          color: '#FFB347',
+          color: '#3B82F6',
           subjectId: weakSubject.subjectId
         };
         cards.push(weakCard);
@@ -128,9 +128,9 @@ class SmartRecommendService {
           type: RecommendType.NEW_LEARN,
           title: '继续学习',
           subtitle: `距今日目标还差 ${remainingGoal} 题`,
-          icon: '📚',
+          icon: $r('app.media.Persevere'),
           count: Math.min(remainingGoal, 30),
-          color: '#4ECDC4'
+          color: '#10B981'
         };
         cards.push(newCard);
       }
@@ -141,9 +141,9 @@ class SmartRecommendService {
           type: RecommendType.DAILY_TASK,
           title: '开始学习',
           subtitle: '每天进步一点点',
-          icon: '🚀',
+          icon: $r('app.media.Recommend'),
           count: 20,
-          color: '#667eea'
+          color: '#6366F1'
         };
         cards.push(defaultCard);
       }

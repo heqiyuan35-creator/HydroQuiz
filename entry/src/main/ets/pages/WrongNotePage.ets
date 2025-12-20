@@ -779,7 +779,10 @@ struct WrongNotePage {
         Row({ space: 24 }) {
           // 拍照识别
           Column() {
-            Text(this.isRecognizing ? '⏳' : '📷').fontSize(22)
+            Image($r('app.media.Camera'))
+              .width(22)
+              .height(22)
+              .objectFit(ImageFit.Contain)
             Text(this.isRecognizing ? '识别中' : '拍照识别')
               .fontSize(11)
               .fontColor(this.isRecognizing ? ThemeColors.WARNING : ThemeColors.PRIMARY)
@@ -793,7 +796,10 @@ struct WrongNotePage {
 
           // 语音录入
           Column() {
-            Text(this.isRecording ? '🔴' : '🎤').fontSize(22)
+            Image($r('app.media.Recording'))
+              .width(22)
+              .height(22)
+              .objectFit(ImageFit.Contain)
             Text(this.isRecording ? '录音中' : '语音录入')
               .fontSize(11)
               .fontColor(this.isRecording ? ThemeColors.ERROR : ThemeColors.PRIMARY)

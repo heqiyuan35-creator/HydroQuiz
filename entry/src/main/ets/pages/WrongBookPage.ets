@@ -649,8 +649,10 @@ struct WrongBookPage {
   @Builder
   EmptyState() {
     Column() {
-      Text('📚')
-        .fontSize(64)
+      Image($r('app.media.WrongQuestion'))
+        .width(64)
+        .height(64)
+        .objectFit(ImageFit.Contain)
 
       Text('暂无错题')
         .fontSize(ThemeConstants.FONT_SIZE_XL)

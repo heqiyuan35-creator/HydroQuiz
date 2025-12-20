@@ -153,7 +153,10 @@ struct ExamScorePage {
   @Builder
   EmptyState() {
     Column() {
-      Text('📋').fontSize(64)
+      Image($r('app.media.Exam'))
+        .width(64)
+        .height(64)
+        .objectFit(ImageFit.Contain)
       Text('暂无考试记录')
         .fontSize(16).fontColor(ThemeColors.TEXT_SECONDARY).margin({ top: 16 })
       Text('完成一次模拟考试后，成绩会显示在这里')

@@ -114,10 +114,10 @@ struct PracticePage {
         .width('100%')
 
       Column() {
-        this.ModeItem(AppConstants.PRACTICE_MODE_SEQUENCE, '顺序练习', '按题目顺序依次练习', '📝')
-        this.ModeItem(AppConstants.PRACTICE_MODE_RANDOM, '随机练习', '随机抽取题目练习', '🎲')
-        this.ModeItem(AppConstants.PRACTICE_MODE_WRONG, '错题练习', '针对错题重复练习', '❌')
-        this.ModeItem(AppConstants.PRACTICE_MODE_FAVORITE, '收藏练习', '练习收藏的题目', '⭐')
+        this.ModeItem(AppConstants.PRACTICE_MODE_SEQUENCE, '顺序练习', '按题目顺序依次练习', $r('app.media.Edit'))
+        this.ModeItem(AppConstants.PRACTICE_MODE_RANDOM, '随机练习', '随机抽取题目练习', $r('app.media.Recommend'))
+        this.ModeItem(AppConstants.PRACTICE_MODE_WRONG, '错题练习', '针对错题重复练习', $r('app.media.WrongQuestion'))
+        this.ModeItem(AppConstants.PRACTICE_MODE_FAVORITE, '收藏练习', '练习收藏的题目', $r('app.media.AddedtoFavorites'))
       }
       .margin({ top: ThemeConstants.SPACING_SM })
     }
@@ -129,12 +129,14 @@ struct PracticePage {
    * 练习模式项
    */
   @Builder
-  ModeItem(mode: string, title: string, desc: string, icon: string) {
+  ModeItem(mode: string, title: string, desc: string, icon: Resource) {
     Row() {
       // 图标
-      Text(icon)
-        .fontSize(24)
-        .width(40)
+      Image(icon)
+        .width(24)
+        .height(24)
+        .objectFit(ImageFit.Contain)
+        .margin({ right: 16 })
 
       // 信息
       Column() {

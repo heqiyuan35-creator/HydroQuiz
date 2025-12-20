@@ -69,7 +69,7 @@ struct WrongPracticePage {
   private async submitAnswer(): Promise<void> {
     if (this.selectedOptions.length === 0 || !this.question) return;
 
-    const userAnswer = this.selectedOptions.sort().join(',');
+    const userAnswer = [...this.selectedOptions].sort().join(',');
     const answerTime = Math.round((Date.now() - this.answerStartTime) / 1000);
     this.isCorrect = userAnswer === this.question.answer;
 
@@ -195,9 +195,10 @@ struct WrongPracticePage {
         .textAlign(TextAlign.Center)
 
       Row() {
-        Text(this.isFavorite ? '⭐' : '☆')
-          .fontSize(ThemeConstants.FONT_SIZE_XL)
-          .fontColor(this.isFavorite ? ThemeColors.WARNING : ThemeColors.TEXT_HINT)
+        Image(this.isFavorite ? $r('app.media.AddedtoFavorites') : $r('app.media.Tobesaved'))
+          .width(24)
+          .height(24)
+          .objectFit(ImageFit.Contain)
       }
       .width(40).height(40)
       .justifyContent(FlexAlign.Center)

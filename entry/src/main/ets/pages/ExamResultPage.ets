@@ -146,9 +146,9 @@ struct ExamResultPage {
         .width('100%')
 
       Row() {
-        this.DetailItem('📝', '总题数', `${this.totalCount}题`)
-        this.DetailItem('✅', '正确数', `${this.correctCount}题`)
-        this.DetailItem('❌', '错误数', `${this.totalCount - this.correctCount}题`)
+        this.DetailItem($r('app.media.Edit'), '总题数', `${this.totalCount}题`)
+        this.DetailItem($r('app.media.right'), '正确数', `${this.correctCount}题`)
+        this.DetailItem($r('app.media.WrongQuestion'), '错误数', `${this.totalCount - this.correctCount}题`)
       }
       .width('100%')
       .margin({ top: ThemeConstants.SPACING_MD })
@@ -159,9 +159,9 @@ struct ExamResultPage {
         .color(ThemeColors.BORDER)
 
       Row() {
-        this.DetailItem('⏱️', '用时', this.formatDuration(this.duration))
-        this.DetailItem('📊', '正确率', `${this.totalCount > 0 ? Math.round((this.correctCount / this.totalCount) * 100) : 0}%`)
-        this.DetailItem('🎯', '及格线', `${this.passScore}分`)
+        this.DetailItem($r('app.media.Calendar'), '用时', this.formatDuration(this.duration))
+        this.DetailItem($r('app.media.Statistics'), '正确率', `${this.totalCount > 0 ? Math.round((this.correctCount / this.totalCount) * 100) : 0}%`)
+        this.DetailItem($r('app.media.Precise'), '及格线', `${this.passScore}分`)
       }
       .width('100%')
       .justifyContent(FlexAlign.SpaceAround)
@@ -174,10 +174,12 @@ struct ExamResultPage {
   }
 
   @Builder
-  DetailItem(icon: string, label: string, value: string) {
+  DetailItem(icon: Resource, label: string, value: string) {
     Column() {
-      Text(icon)
-        .fontSize(24)
+      Image(icon)
+        .width(24)
+        .height(24)
+        .objectFit(ImageFit.Contain)
 
       Text(value)
         .fontSize(ThemeConstants.FONT_SIZE_LG)
