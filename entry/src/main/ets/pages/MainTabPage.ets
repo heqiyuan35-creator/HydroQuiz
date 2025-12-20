@@ -22,7 +22,7 @@ import { SUBJECT_LIST } from '../data/SubjectData';
 import { SubjectInfo } from '../common/types/QuestionTypes';
 import { onboardingService } from '../services/OnboardingService';
 import { OnboardingGuideOverlay } from '../components/OnboardingGuideOverlay';
-import { GuideStep, AreaRect } from '../common/types/OnboardingTypes';
+import { GuideStep } from '../common/types/OnboardingTypes';
 
 /**
  * Tab项配置接口
@@ -85,7 +85,6 @@ struct MainTabPage {
   // 新手导引相关状态
   @State showOnboardingGuide: boolean = false;
   @State currentGuideStep: GuideStep | null = null;
-  @State guideTargetRect: AreaRect | null = null;
   @State guideProgressText: string = '';
   @State guideIsLastStep: boolean = false;
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
@@ -175,34 +174,11 @@ struct MainTabPage {
     this.currentGuideStep = onboardingService.getCurrentStep();
     this.guideProgressText = onboardingService.getProgressText();
     this.guideIsLastStep = onboardingService.isLastStep();
-    // 更新目标区域位置
-    this.updateTargetRect();
-  }
-
-  /**
-   * 更新目标区域位置
-   */
-  private updateTargetRect(): void {
-    if (!this.currentGuideStep) {
-      this.guideTargetRect = null;
-      return;
+    // 如果步骤需要切换Tab，则切换
+    if (this.currentGuideStep?.tabIndex !== undefined) {
+      this.currentIndex = this.currentGuideStep.tabIndex;
+      this.tabController.changeIndex(this.currentGuideStep.tabIndex);
     }
-    // 根据步骤ID设置预定义的位置
-    // 由于ArkTS中获取组件位置较复杂，这里使用预定义位置
-    const targetId = this.currentGuideStep.targetId;
-    const rects: Record<string, AreaRect> = {
-      'home-header': { x: 16, y: 60, width: 358, height: 60 },
-      'learning-progress': { x: 16, y: 140, width: 358, height: 180 },
-      'practice-entry': { x: 16, y: 380, width: 170, height: 120 },
-      'exam-entry': { x: 16, y: 640, width: 358, height: 110 },
-      'wrong-entry': { x: 16, y: 510, width: 170, height: 120 },
-      'favorite-entry': { x: 200, y: 510, width: 170, height: 120 },
-      'tab-home': { x: 0, y: 750, width: 95, height: 56 },
-      'tab-bank': { x: 95, y: 750, width: 95, height: 56 },
-      'tab-knowledge': { x: 190, y: 750, width: 95, height: 56 },
-      'tab-profile': { x: 285, y: 750, width: 95, height: 56 }
-    };
-    this.guideTargetRect = rects[targetId] || null;
   }
 
   /**
@@ -405,7 +381,6 @@ struct MainTabPage {
       OnboardingGuideOverlay({
         isVisible: this.showOnboardingGuide,
         currentStep: this.currentGuideStep,
-        targetRect: this.guideTargetRect,
         progressText: this.guideProgressText,
         isLastStep: this.guideIsLastStep,
         onNext: () => { this.handleGuideNext(); },

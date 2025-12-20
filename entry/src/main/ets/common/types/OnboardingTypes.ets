@@ -6,17 +6,17 @@
 /**
  * 说明卡片位置类型
  */
-export type CardPosition = 'top' | 'bottom' | 'auto';
+export type CardPosition = 'top' | 'bottom' | 'center';
 
 /**
  * 导引步骤接口
  */
 export interface GuideStep {
   id: string;                    // 步骤唯一标识
-  targetId: string;              // 目标区域ID
   title: string;                 // 功能标题
   description: string;           // 功能描述
   position: CardPosition;        // 说明卡片位置
+  tabIndex?: number;             // 需要切换到的Tab索引（可选）
 }
 
 /**
@@ -29,88 +29,42 @@ export interface OnboardingState {
 }
 
 /**
- * 区域矩形接口
- */
-export interface AreaRect {
-  x: number;                     // 区域左上角X坐标
-  y: number;                     // 区域左上角Y坐标
-  width: number;                 // 区域宽度
-  height: number;                // 区域高度
-}
-
-/**
  * 导引步骤配置
- * 包含10个导引步骤：6个首页功能 + 4个Tab导航
+ * 简化为5个步骤：欢迎 + 4个Tab介绍
  */
 export const GUIDE_STEPS: GuideStep[] = [
   {
-    id: 'header',
-    targetId: 'home-header',
-    title: '个人中心',
-    description: '这里显示你的头像和问候语，点击设置图标可以进入设置页面',
-    position: 'bottom'
-  },
-  {
-    id: 'progress',
-    targetId: 'learning-progress',
-    title: '学习进度',
-    description: '查看今日学习情况和打卡状态，完成每日目标即可打卡',
-    position: 'bottom'
-  },
-  {
-    id: 'practice',
-    targetId: 'practice-entry',
-    title: '顺序刷题',
-    description: '按科目顺序练习题目，系统会记录你的进度',
-    position: 'auto'
-  },
-  {
-    id: 'exam',
-    targetId: 'exam-entry',
-    title: '模拟考试',
-    description: '模拟真实考试环境，检验学习成果',
-    position: 'auto'
-  },
-  {
-    id: 'wrong',
-    targetId: 'wrong-entry',
-    title: '错题本',
-    description: '自动收集做错的题目，方便针对性复习',
-    position: 'auto'
-  },
-  {
-    id: 'favorite',
-    targetId: 'favorite-entry',
-    title: '收藏夹',
-    description: '收藏重要题目，随时查看复习',
-    position: 'auto'
+    id: 'welcome',
+    title: '欢迎使用水利刷题宝！',
+    description: '恭喜你完成了水平测试！接下来让我带你快速了解应用的主要功能。',
+    position: 'center'
   },
   {
     id: 'tab-home',
-    targetId: 'tab-home',
     title: '首页',
-    description: '返回首页查看学习概览和快捷入口',
-    position: 'top'
+    description: '这里是你的学习主阵地，可以查看学习进度、每日打卡，还有各种练习入口。向下滑动可以看到更多功能哦！',
+    position: 'top',
+    tabIndex: 0
   },
   {
     id: 'tab-bank',
-    targetId: 'tab-bank',
     title: '题库',
-    description: '按科目分类浏览所有题目',
-    position: 'top'
+    description: '按科目分类浏览所有题目，支持顺序练习和随机练习，还能查看错题本和收藏夹。',
+    position: 'top',
+    tabIndex: 1
   },
   {
     id: 'tab-knowledge',
-    targetId: 'tab-knowledge',
     title: '知识库',
-    description: '查看水利工程相关知识文章',
-    position: 'top'
+    description: '这里有丰富的水利工程知识文章，帮助你理解考点、巩固记忆。',
+    position: 'top',
+    tabIndex: 2
   },
   {
     id: 'tab-profile',
-    targetId: 'tab-profile',
     title: '我的',
-    description: '查看个人信息、学习统计和成就',
-    position: 'top'
+    description: '查看个人信息、学习统计、成就徽章，还可以在设置中调整学习计划。',
+    position: 'top',
+    tabIndex: 3
   }
 ];

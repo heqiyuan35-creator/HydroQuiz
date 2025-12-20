@@ -1,19 +1,16 @@
 /**
  * 新手导引遮罩组件
  * HydroQuiz - 水利工程检测员刷题宝
+ * 简化版：全屏遮罩 + 居中/顶部/底部说明卡片
  */
-import { GuideStep, AreaRect, CardPosition } from '../common/types/OnboardingTypes';
+import { GuideStep, CardPosition } from '../common/types/OnboardingTypes';
 import { ThemeColors } from '../theme/ThemeColors';
 import { ThemeConstants } from '../theme/ThemeConstants';
 
-/**
- * 新手导引遮罩组件
- */
 @Component
 export struct OnboardingGuideOverlay {
   @Link isVisible: boolean;
   @Prop currentStep: GuideStep | null = null;
-  @Prop targetRect: AreaRect | null = null;
   @Prop progressText: string = '';
   @Prop isLastStep: boolean = false;
   onNext: () => void = () => {};
@@ -21,220 +18,234 @@ export struct OnboardingGuideOverlay {
 
   // 动画状态
   @State maskOpacity: number = 0;
+  @State cardScale: number = 0.9;
   @State cardOpacity: number = 0;
-  @State cardTranslateY: number = 20;
-
-  // 屏幕尺寸
-  @State screenHeight: number = 800;
 
   aboutToAppear(): void {
-    // 启动淡入动画
-    animateTo({
-      duration: 300,
-      curve: Curve.EaseOut
-    }, () => {
-      this.maskOpacity = 1;
-    });
-    // 卡片延迟淡入
+    // 延迟启动动画，让页面先渲染
     setTimeout(() => {
       animateTo({
-        duration: 250,
+        duration: 400,
         curve: Curve.EaseOut
       }, () => {
+        this.maskOpacity = 1;
+        this.cardScale = 1;
         this.cardOpacity = 1;
-        this.cardTranslateY = 0;
       });
-    }, 150);
-  }
-
-  /**
-   * 计算说明卡片位置
-   */
-  private getCardPosition(): CardPosition {
-    if (!this.currentStep || !this.targetRect) {
-      return 'bottom';
-    }
-    if (this.currentStep.position !== 'auto') {
-      return this.currentStep.position;
-    }
-    // auto模式：根据目标区域位置自动判断
-    const targetCenterY = this.targetRect.y + this.targetRect.height / 2;
-    return targetCenterY < this.screenHeight / 2 ? 'bottom' : 'top';
-  }
-
-
-  /**
-   * 获取卡片顶部位置
-   */
-  private getCardTop(): number {
-    if (!this.targetRect) {
-      return 200;
-    }
-    const position = this.getCardPosition();
-    if (position === 'top') {
-      // 卡片在目标区域上方
-      return Math.max(60, this.targetRect.y - 180);
-    } else {
-      // 卡片在目标区域下方
-      return this.targetRect.y + this.targetRect.height + 16;
-    }
+    }, 100);
   }
 
   /**
    * 处理下一步点击
    */
   private handleNext(): void {
-    // 先执行淡出动画
-    animateTo({
-      duration: 150,
-      curve: Curve.EaseIn
-    }, () => {
-      this.cardOpacity = 0;
-      this.cardTranslateY = -10;
-    });
-    // 延迟执行下一步
-    setTimeout(() => {
-      this.onNext();
-      // 重新淡入
-      setTimeout(() => {
-        animateTo({
-          duration: 200,
-          curve: Curve.EaseOut
-        }, () => {
-          this.cardOpacity = 1;
-          this.cardTranslateY = 0;
-        });
-      }, 50);
-    }, 150);
-  }
-
-  /**
-   * 处理跳过点击
-   */
-  private handleSkip(): void {
+    // 卡片淡出
     animateTo({
       duration: 200,
       curve: Curve.EaseIn
     }, () => {
+      this.cardOpacity = 0;
+      this.cardScale = 0.95;
+    });
+
+    setTimeout(() => {
+      this.onNext();
+      // 卡片淡入
+      setTimeout(() => {
+        animateTo({
+          duration: 250,
+          curve: Curve.EaseOut
+        }, () => {
+          this.cardOpacity = 1;
+          this.cardScale = 1;
+        });
+      }, 100);
+    }, 200);
+  }
+
+  /**
+   * 处理跳过/完成点击
+   */
+  private handleSkip(): void {
+    animateTo({
+      duration: 300,
+      curve: Curve.EaseIn
+    }, () => {
       this.maskOpacity = 0;
+      this.cardOpacity = 0;
     });
     setTimeout(() => {
       this.onSkip();
-    }, 200);
+    }, 300);
+  }
+
+  /**
+   * 获取卡片垂直对齐方式
+   */
+  private getCardAlignment(): FlexAlign {
+    if (!this.currentStep) return FlexAlign.Center;
+    switch (this.currentStep.position) {
+      case 'top': return FlexAlign.Start;
+      case 'bottom': return FlexAlign.End;
+      default: return FlexAlign.Center;
+    }
+  }
+
+  /**
+   * 获取卡片上边距
+   */
+  private getCardMarginTop(): number {
+    if (!this.currentStep) return 0;
+    return this.currentStep.position === 'top' ? 120 : 0;
+  }
+
+  /**
+   * 获取卡片下边距
+   */
+  private getCardMarginBottom(): number {
+    if (!this.currentStep) return 0;
+    return this.currentStep.position === 'bottom' ? 120 : 0;
   }
 
   build() {
     if (this.isVisible && this.currentStep) {
       Stack() {
-        // 遮罩层背景
+        // 半透明遮罩背景
         Column()
           .width('100%')
           .height('100%')
-          .backgroundColor('rgba(0, 0, 0, 0.7)')
+          .backgroundColor('rgba(0, 0, 0, 0.75)')
           .opacity(this.maskOpacity)
 
-        // 高亮区域（透明镂空效果）
-        if (this.targetRect) {
-          // 使用白色边框高亮目标区域
-          Column()
-            .width(this.targetRect.width + 8)
-            .height(this.targetRect.height + 8)
-            .position({
-              x: this.targetRect.x - 4,
-              y: this.targetRect.y - 4
-            })
-            .borderRadius(ThemeConstants.RADIUS_MD)
-            .border({
-              width: 3,
-              color: ThemeColors.PRIMARY
-            })
-            .backgroundColor('rgba(255, 255, 255, 0.15)')
-            .opacity(this.maskOpacity)
+        // 说明卡片容器
+        Column() {
+          this.GuideCard()
         }
-
-        // 说明卡片
-        this.GuideCard()
+        .width('100%')
+        .height('100%')
+        .padding({ left: 20, right: 20 })
+        .justifyContent(this.getCardAlignment())
       }
       .width('100%')
       .height('100%')
-      .onAreaChange((oldValue: Area, newValue: Area) => {
-        this.screenHeight = newValue.height as number;
-      })
     }
   }
 
-  /**
-   * 说明卡片
-   */
   @Builder
   GuideCard() {
     Column() {
-      // 标题
-      Row() {
-        Text(this.currentStep?.title || '')
-          .fontSize(ThemeConstants.FONT_SIZE_LG)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeColors.TEXT_PRIMARY)
-
-        Blank()
-
-        // 进度指示
-        Text(this.progressText)
-          .fontSize(ThemeConstants.FONT_SIZE_XS)
-          .fontColor(ThemeColors.TEXT_HINT)
-          .padding({ left: 8, right: 8, top: 4, bottom: 4 })
-          .backgroundColor(ThemeColors.GRAY_100)
-          .borderRadius(10)
+      // 步骤图标
+      if (this.currentStep?.id === 'welcome') {
+        Text('👋')
+          .fontSize(48)
+          .margin({ bottom: 16 })
+      } else {
+        // Tab图标
+        Row() {
+          Text(this.getTabEmoji())
+            .fontSize(32)
+        }
+        .width(64)
+        .height(64)
+        .borderRadius(32)
+        .backgroundColor(ThemeColors.PRIMARY + '20')
+        .justifyContent(FlexAlign.Center)
+        .margin({ bottom: 16 })
       }
-      .width('100%')
+
+      // 标题
+      Text(this.currentStep?.title || '')
+        .fontSize(22)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(ThemeColors.TEXT_PRIMARY)
+        .textAlign(TextAlign.Center)
 
       // 描述
       Text(this.currentStep?.description || '')
-        .fontSize(ThemeConstants.FONT_SIZE_BASE)
+        .fontSize(15)
         .fontColor(ThemeColors.TEXT_SECONDARY)
-        .margin({ top: ThemeConstants.SPACING_SM })
-        .lineHeight(22)
+        .textAlign(TextAlign.Center)
+        .margin({ top: 12 })
+        .lineHeight(24)
+
+      // 进度指示器
+      Row() {
+        ForEach([0, 1, 2, 3, 4], (index: number) => {
+          Column()
+            .width(this.isCurrentDot(index) ? 20 : 8)
+            .height(8)
+            .borderRadius(4)
+            .backgroundColor(this.isCurrentDot(index) ? ThemeColors.PRIMARY : ThemeColors.GRAY_300)
+            .margin({ left: 4, right: 4 })
+        })
+      }
+      .margin({ top: 24 })
 
       // 按钮区域
       Row() {
         // 跳过按钮
-        Text('跳过')
-          .fontSize(ThemeConstants.FONT_SIZE_SM)
-          .fontColor(ThemeColors.TEXT_HINT)
-          .padding({ left: 16, right: 16, top: 10, bottom: 10 })
-          .onClick(() => {
-            this.handleSkip();
-          })
+        if (!this.isLastStep) {
+          Text('跳过')
+            .fontSize(15)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .padding({ left: 20, right: 20, top: 12, bottom: 12 })
+            .onClick(() => {
+              this.handleSkip();
+            })
+        }
 
         Blank()
 
-        // 下一步/完成按钮
+        // 下一步/开始使用按钮
         Row() {
-          Text(this.isLastStep ? '完成' : '下一步')
-            .fontSize(ThemeConstants.FONT_SIZE_SM)
+          Text(this.isLastStep ? '开始使用' : '下一步')
+            .fontSize(15)
             .fontColor(ThemeColors.WHITE)
             .fontWeight(FontWeight.Medium)
         }
-        .padding({ left: 24, right: 24, top: 10, bottom: 10 })
+        .padding({ left: 32, right: 32, top: 12, bottom: 12 })
         .backgroundColor(ThemeColors.PRIMARY)
-        .borderRadius(20)
+        .borderRadius(24)
         .onClick(() => {
-          this.handleNext();
+          if (this.isLastStep) {
+            this.handleSkip();
+          } else {
+            this.handleNext();
+          }
         })
       }
       .width('100%')
-      .margin({ top: ThemeConstants.SPACING_MD })
+      .margin({ top: 32 })
     }
-    .width('90%')
-    .padding(ThemeConstants.SPACING_MD)
+    .width('100%')
+    .padding(24)
+    .margin({ top: this.getCardMarginTop(), bottom: this.getCardMarginBottom() })
     .backgroundColor(ThemeColors.WHITE)
-    .borderRadius(ThemeConstants.RADIUS_LG)
-    .shadow({ radius: 16, color: 'rgba(0, 0, 0, 0.15)', offsetX: 0, offsetY: 8 })
-    .position({
-      x: '5%',
-      y: this.getCardTop()
-    })
+    .borderRadius(20)
+    .shadow({ radius: 24, color: 'rgba(0, 0, 0, 0.2)', offsetX: 0, offsetY: 12 })
+    .scale({ x: this.cardScale, y: this.cardScale })
     .opacity(this.cardOpacity)
-    .translate({ y: this.cardTranslateY })
+  }
+
+  /**
+   * 获取Tab对应的emoji
+   */
+  private getTabEmoji(): string {
+    if (!this.currentStep) return '';
+    switch (this.currentStep.id) {
+      case 'tab-home': return '🏠';
+      case 'tab-bank': return '📚';
+      case 'tab-knowledge': return '💡';
+      case 'tab-profile': return '👤';
+      default: return '✨';
+    }
+  }
+
+  /**
+   * 判断是否是当前进度点
+   */
+  private isCurrentDot(index: number): boolean {
+    const stepIndex = parseInt(this.progressText.split('/')[0]) - 1;
+    return index === stepIndex;
   }
 }
