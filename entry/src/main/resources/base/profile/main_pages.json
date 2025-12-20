@@ -27,6 +27,7 @@
     "pages/StudyReportPage",
     "pages/ExamScorePage",
     "pages/AchievementPage",
-    "pages/ExamAnswerPage"
+    "pages/ExamAnswerPage",
+    "pages/EntryTestPage"
   ]
 }

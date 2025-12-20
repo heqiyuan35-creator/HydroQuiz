@@ -17,6 +17,9 @@ import { KnowledgeArticle, KnowledgeSubject, KnowledgeCategory, ContentType } fr
 import { achievementNotificationService, AchievementUnlockCallback } from '../services/AchievementNotificationService';
 import { Achievement } from '../services/AchievementService';
 import { smartRecommendService, RecommendCard, SubjectProgress, RecommendType } from '../services/SmartRecommendService';
+import { wrongStatisticsService, SubjectDistribution } from '../services/WrongStatisticsService';
+import { SUBJECT_LIST } from '../data/SubjectData';
+import { SubjectInfo } from '../common/types/QuestionTypes';
 
 /**
  * Tab项配置接口
@@ -74,6 +77,8 @@ struct MainTabPage {
   // 智能推荐相关状态
   @State recommendCards: RecommendCard[] = [];
   @State subjectProgressList: SubjectProgress[] = [];
+  // 错题科目分布（用于知识库推荐）
+  @State wrongSubjectDistribution: SubjectDistribution[] = [];
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
   private achievementCallback: AchievementUnlockCallback | null = null;
 
@@ -181,6 +186,10 @@ struct MainTabPage {
       // 加载智能推荐数据
       this.recommendCards = await smartRecommendService.getTodayRecommendCards();
       this.subjectProgressList = await smartRecommendService.getAllSubjectProgress();
+
+      // 加载错题科目分布（用于知识库推荐）
+      const wrongStats = await wrongStatisticsService.getStatisticsData();
+      this.wrongSubjectDistribution = wrongStats.subjectDistribution;
     } catch (error) {
       // 忽略错误，使用默认值
     }
@@ -2201,12 +2210,129 @@ struct MainTabPage {
         // 搜索模式：显示搜索结果列表
         this.KnowledgeSearchResults()
       } else {
-        // 树形目录模式
+        // 树形目录模式（包含推荐区域）
         this.KnowledgeTreeView()
       }
     }
     .width('100%')
     .height('100%')
+  }
+
+  /**
+   * 获取推荐学习的科目列表（根据错题数量排序，取前3个）
+   */
+  private getRecommendedSubjects(): SubjectInfo[] {
+    if (this.wrongSubjectDistribution.length === 0) {
+      return [];
+    }
+
+    // 按错题数量排序，过滤掉错题为0的
+    const sorted = this.wrongSubjectDistribution
+      .filter((d: SubjectDistribution) => d.count > 0)
+      .sort((a: SubjectDistribution, b: SubjectDistribution) => b.count - a.count)
+      .slice(0, 3);
+
+    // 转换为科目信息
+    const result: SubjectInfo[] = [];
+    for (const dist of sorted) {
+      const subject = SUBJECT_LIST.find((s: SubjectInfo) => s.id === dist.subjectId);
+      if (subject) {
+        result.push(subject);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * 获取科目的错题数量
+   */
+  private getSubjectWrongCount(subjectId: string): number {
+    const dist = this.wrongSubjectDistribution.find((d: SubjectDistribution) => d.subjectId === subjectId);
+    return dist ? dist.count : 0;
+  }
+
+  /**
+   * 获取错题总数
+   */
+  private getTotalWrongCount(): number {
+    let total = 0;
+    for (const dist of this.wrongSubjectDistribution) {
+      total += dist.count;
+    }
+    return total;
+  }
+
+  /**
+   * 知识库智能推荐区域
+   */
+  @Builder
+  KnowledgeRecommendSection() {
+    Column() {
+      // 获取推荐科目列表
+      if (this.getRecommendedSubjects().length > 0) {
+        Column() {
+          Row() {
+            Text('💡')
+              .fontSize(13)
+            Text(' 薄弱知识点')
+              .fontSize(13)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeColors.TEXT_PRIMARY)
+            
+            Blank()
+            
+            Text(`${this.getTotalWrongCount()} 道错题`)
+              .fontSize(11)
+              .fontColor(ThemeColors.TEXT_HINT)
+          }
+          .width('100%')
+          .margin({ bottom: 8 })
+
+          // 横向排列的推荐科目
+          Row({ space: 8 }) {
+            ForEach(this.getRecommendedSubjects(), (subject: SubjectInfo, index: number) => {
+              Row() {
+                // 排名小圆点
+                Text(`${index + 1}`)
+                  .fontSize(9)
+                  .fontColor(ThemeColors.WHITE)
+                  .fontWeight(FontWeight.Bold)
+                  .textAlign(TextAlign.Center)
+                  .width(14)
+                  .height(14)
+                  .borderRadius(7)
+                  .backgroundColor(index === 0 ? '#FF4D4F' : (index === 1 ? '#FF7A45' : '#FAAD14'))
+
+                // 科目名称（简短）
+                Text(subject.shortName)
+                  .fontSize(12)
+                  .fontColor(ThemeColors.TEXT_PRIMARY)
+                  .margin({ left: 6 })
+
+                // 错题数
+                Text(`${this.getSubjectWrongCount(subject.id)}`)
+                  .fontSize(11)
+                  .fontColor(ThemeColors.ERROR)
+                  .margin({ left: 4 })
+              }
+              .padding({ left: 8, right: 10, top: 6, bottom: 6 })
+              .backgroundColor(ThemeColors.SURFACE)
+              .borderRadius(16)
+              .border({ width: 1, color: ThemeColors.GRAY_200 })
+              .onClick(() => {
+                if (!this.expandedSubjects.has(subject.id)) {
+                  this.toggleSubjectExpand(subject.id);
+                }
+              })
+            }, (subject: SubjectInfo) => subject.id)
+          }
+          .width('100%')
+        }
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+        .margin({ top: ThemeConstants.SPACING_SM, bottom: ThemeConstants.SPACING_XS })
+      }
+    }
   }
 
   /**
@@ -2216,6 +2342,9 @@ struct MainTabPage {
   KnowledgeTreeView() {
     Scroll() {
       Column() {
+        // 智能推荐区域
+        this.KnowledgeRecommendSection()
+
         // 科目树形列表
         ForEach(this.knowledgeSubjects, (subject: KnowledgeSubject) => {
           this.KnowledgeSubjectTree(subject)

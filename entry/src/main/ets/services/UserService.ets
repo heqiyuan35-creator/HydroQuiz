@@ -18,6 +18,16 @@ export interface UserInfo {
 }
 
 /**
+ * 入门测试结果接口
+ */
+export interface EntryTestResult {
+  score: number;
+  accuracy: number;
+  level: string;
+  date: number;
+}
+
+/**
  * 默认用户信息
  */
 const DEFAULT_USER: UserInfo = {
@@ -383,6 +393,85 @@ class UserService {
     } catch (error) {
       Logger.error('[UserService] Save showAnswerImmediately failed', error as Error);
       return false;
+    }
+  }
+
+  /**
+   * 检查是否已完成入门测试
+   */
+  async hasCompletedEntryTest(): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      const completed = await this.preferences.get('hasCompletedEntryTest', false) as boolean;
+      return completed;
+    } catch (error) {
+      Logger.error('[UserService] Check entry test status failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 标记入门测试已完成
+   */
+  async markEntryTestCompleted(): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('hasCompletedEntryTest', true);
+      await this.preferences.flush();
+      Logger.info('[UserService] Entry test marked as completed');
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Mark entry test completed failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 保存入门测试结果
+   */
+  async saveEntryTestResult(score: number, accuracy: number, level: string): Promise<boolean> {
+    if (!this.preferences) {
+      return false;
+    }
+    try {
+      await this.preferences.put('entryTestScore', score);
+      await this.preferences.put('entryTestAccuracy', accuracy);
+      await this.preferences.put('entryTestLevel', level);
+      await this.preferences.put('entryTestDate', Date.now());
+      await this.preferences.flush();
+      Logger.info(`[UserService] Entry test result saved: score=${score}, accuracy=${accuracy}, level=${level}`);
+      return true;
+    } catch (error) {
+      Logger.error('[UserService] Save entry test result failed', error as Error);
+      return false;
+    }
+  }
+
+  /**
+   * 获取入门测试结果
+   */
+  async getEntryTestResult(): Promise<EntryTestResult | null> {
+    if (!this.preferences) {
+      return null;
+    }
+    try {
+      const hasCompleted = await this.preferences.get('hasCompletedEntryTest', false) as boolean;
+      if (!hasCompleted) {
+        return null;
+      }
+      const score = await this.preferences.get('entryTestScore', 0) as number;
+      const accuracy = await this.preferences.get('entryTestAccuracy', 0) as number;
+      const level = await this.preferences.get('entryTestLevel', '') as string;
+      const date = await this.preferences.get('entryTestDate', 0) as number;
+      const result: EntryTestResult = { score, accuracy, level, date };
+      return result;
+    } catch (error) {
+      Logger.error('[UserService] Get entry test result failed', error as Error);
+      return null;
     }
   }
 }

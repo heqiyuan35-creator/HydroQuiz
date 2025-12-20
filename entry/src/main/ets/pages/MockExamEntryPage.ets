@@ -11,6 +11,7 @@ import { SUBJECT_LIST, getSubjectShortName } from '../data/SubjectData';
 import { SubjectInfo } from '../common/types/QuestionTypes';
 import { Logger } from '../common/utils/Logger';
 import { promptAction } from '@kit.ArkUI';
+import { webview } from '@kit.ArkWeb';
 
 /**
  * 考试类型统计接口
@@ -32,24 +33,27 @@ interface ExamTypeConfig {
 }
 
 /**
- * 考试类型图表数据接口
- */
-interface ExamTypeChartItem {
-  type: string;
-  name: string;
-  count: number;
-  passCount: number;
-  totalHeight: number;
-  passHeight: number;
-  color: ResourceColor;
-}
-
-/**
  * 考试类型计数接口
  */
 interface ExamTypeCount {
   count: number;
   passCount: number;
+}
+
+/**
+ * 饼图数据接口 - 用于传递给Web
+ */
+interface PieChartWebData {
+  type: string;
+  count: number;
+  passCount: number;
+}
+
+/**
+ * 图表数据接口 - 传递给HTML
+ */
+interface ChartData {
+  typeStats: PieChartWebData[];
 }
 
 @Entry
@@ -60,8 +64,16 @@ struct MockExamEntryPage {
   @State showSubjectPicker: boolean = false;
   @State selectedExamType: ExamType = 'full';
   @State examRecords: MockExamRecord[] = [];
+  private webController: webview.WebviewController = new webview.WebviewController();
+  private isWebReady: boolean = false;
 
   aboutToAppear(): void {
+    // 开启Web调试
+    try {
+      webview.WebviewController.setWebDebuggingAccess(true);
+    } catch (error) {
+      Logger.error('[MockExamEntryPage] Failed to set web debugging', error as Error);
+    }
     this.loadData();
   }
 
@@ -462,7 +474,7 @@ struct MockExamEntryPage {
   }
 
   /**
-   * 考试类型统计图表
+   * 考试类型统计饼图 - 使用ArkWeb + ECharts
    */
   @Builder
   ExamTypeChart() {
@@ -470,87 +482,98 @@ struct MockExamEntryPage {
       Row() {
         Text('📊')
           .fontSize(14)
-        Text(' 考试统计')
+        Text(' 考试类型分布')
           .fontSize(14)
           .fontWeight(FontWeight.Medium)
           .fontColor(ThemeColors.TEXT_PRIMARY)
+        
+        Text('（点击扇形查看合格率）')
+          .fontSize(11)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .margin({ left: 4 })
       }
       .width('100%')
-      .margin({ bottom: 16 })
+      .margin({ bottom: 8 })
 
-      // 柱状图
-      Row() {
-        ForEach(this.getExamTypeChartData(), (item: ExamTypeChartItem) => {
-          Column() {
-            // 合格/总数标签
-            Text(`${item.passCount}/${item.count}`)
-              .fontSize(11)
-              .fontColor(ThemeColors.TEXT_SECONDARY)
-              .margin({ bottom: 4 })
-
-            // 柱子容器
-            Stack({ alignContent: Alignment.Bottom }) {
-              // 总数柱子（灰色背景）
-              Column()
-                .width(32)
-                .height(item.totalHeight)
-                .backgroundColor(ThemeColors.GRAY_200)
-                .borderRadius(4)
-
-              // 合格柱子（彩色）
-              Column()
-                .width(32)
-                .height(item.passHeight)
-                .backgroundColor(item.color)
-                .borderRadius(4)
-            }
-            .height(80)
-
-            // 类型名称
-            Text(item.name)
-              .fontSize(11)
-              .fontColor(ThemeColors.TEXT_SECONDARY)
-              .margin({ top: 8 })
+      // ArkWeb 饼图容器
+      Web({ src: $rawfile('exam_analysis.html'), controller: this.webController })
+        .width('100%')
+        .height(280)
+        .backgroundColor(Color.Transparent)
+        .onPageEnd(() => {
+          Logger.info('[MockExamEntryPage] Web page loaded');
+          this.isWebReady = true;
+          this.initWebChart();
+        })
+        .onErrorReceive((event) => {
+          if (event) {
+            Logger.error(`[MockExamEntryPage] Web error: ${event.error.getErrorInfo()}`);
           }
-          .layoutWeight(1)
-          .alignItems(HorizontalAlign.Center)
-        }, (item: ExamTypeChartItem) => item.type)
-      }
-      .width('100%')
-
-      // 图例
-      Row({ space: 16 }) {
-        Row({ space: 4 }) {
-          Column()
-            .width(12)
-            .height(12)
-            .backgroundColor(ThemeColors.GRAY_200)
-            .borderRadius(2)
-          Text('考试次数')
-            .fontSize(11)
-            .fontColor(ThemeColors.TEXT_HINT)
-        }
-
-        Row({ space: 4 }) {
-          Column()
-            .width(12)
-            .height(12)
-            .backgroundColor(ThemeColors.SUCCESS)
-            .borderRadius(2)
-          Text('合格次数')
-            .fontSize(11)
-            .fontColor(ThemeColors.TEXT_HINT)
-        }
-      }
-      .width('100%')
-      .margin({ top: 12 })
-      .justifyContent(FlexAlign.Center)
+        })
+        .javaScriptAccess(true)
+        .domStorageAccess(true)
+        .fileAccess(true)
     }
     .width('100%')
     .padding(16)
     .margin({ top: 12 })
     .backgroundColor(ThemeColors.SURFACE)
     .borderRadius(12)
+  }
+
+  /**
+   * 初始化Web图表
+   */
+  private initWebChart(): void {
+    if (!this.isWebReady || this.examRecords.length === 0) return;
+
+    try {
+      const chartData = this.getWebChartData();
+      const dataJson = JSON.stringify(chartData);
+      const escapedJson = dataJson
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
+      this.webController.runJavaScript(`initCharts('${escapedJson}')`);
+      Logger.info('[MockExamEntryPage] Chart initialized');
+    } catch (error) {
+      Logger.error('[MockExamEntryPage] Failed to init chart', error as Error);
+    }
+  }
+
+  /**
+   * 获取Web图表数据
+   */
+  private getWebChartData(): ChartData {
+    const typeMap: Map<string, ExamTypeCount> = new Map();
+    
+    this.examRecords.forEach(r => {
+      const existing = typeMap.get(r.examType);
+      if (existing) {
+        existing.count += 1;
+        if (r.isPassed) existing.passCount += 1;
+      } else {
+        const newCount: ExamTypeCount = { count: 1, passCount: r.isPassed ? 1 : 0 };
+        typeMap.set(r.examType, newCount);
+      }
+    });
+
+    const typeStats: PieChartWebData[] = [];
+    const types: string[] = ['full', 'subject', 'quick', 'wrong'];
+
+    types.forEach(type => {
+      const data = typeMap.get(type);
+      const item: PieChartWebData = {
+        type: type,
+        count: data ? data.count : 0,
+        passCount: data ? data.passCount : 0
+      };
+      typeStats.push(item);
+    });
+
+    const result: ChartData = { typeStats: typeStats };
+    return result;
   }
 
   // 统计方法
@@ -612,61 +635,6 @@ struct MockExamEntryPage {
     });
 
     return stats;
-  }
-
-  private getExamTypeChartData(): ExamTypeChartItem[] {
-    const typeMap: Map<string, ExamTypeCount> = new Map();
-    
-    // 统计每种类型的考试次数和合格次数
-    this.examRecords.forEach(r => {
-      const existing = typeMap.get(r.examType);
-      if (existing) {
-        existing.count += 1;
-        if (r.isPassed) existing.passCount += 1;
-      } else {
-        const newCount: ExamTypeCount = { count: 1, passCount: r.isPassed ? 1 : 0 };
-        typeMap.set(r.examType, newCount);
-      }
-    });
-
-    let maxCount = 1;
-    typeMap.forEach((value) => {
-      if (value.count > maxCount) maxCount = value.count;
-    });
-    const maxHeight = 70;
-
-    const fullConfig: ExamTypeConfig = { name: '全真模拟', color: ThemeColors.PRIMARY };
-    const subjectConfig: ExamTypeConfig = { name: '专项模拟', color: ThemeColors.SUCCESS };
-    const quickConfig: ExamTypeConfig = { name: '快速测验', color: ThemeColors.WARNING };
-    const wrongConfig: ExamTypeConfig = { name: '错题重考', color: ThemeColors.ERROR };
-
-    const result: ExamTypeChartItem[] = [];
-    const types: string[] = ['full', 'subject', 'quick', 'wrong'];
-
-    types.forEach(type => {
-      let config: ExamTypeConfig;
-      if (type === 'full') config = fullConfig;
-      else if (type === 'subject') config = subjectConfig;
-      else if (type === 'quick') config = quickConfig;
-      else config = wrongConfig;
-
-      const data = typeMap.get(type);
-      const count = data ? data.count : 0;
-      const passCount = data ? data.passCount : 0;
-
-      const item: ExamTypeChartItem = {
-        type: type,
-        name: config.name,
-        count: count,
-        passCount: passCount,
-        totalHeight: count > 0 ? Math.max(10, (count / maxCount) * maxHeight) : 10,
-        passHeight: passCount > 0 ? Math.max(5, (passCount / maxCount) * maxHeight) : 0,
-        color: config.color
-      };
-      result.push(item);
-    });
-
-    return result;
   }
 
   @Builder

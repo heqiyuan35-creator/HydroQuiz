@@ -7,6 +7,7 @@ import { ThemeColors } from '../theme/ThemeColors';
 import { ThemeConstants } from '../theme/ThemeConstants';
 import { AppConstants } from '../common/constants/AppConstants';
 import { initializationState } from '../common/utils/InitializationState';
+import { userService } from '../services/UserService';
 
 @Entry
 @Component
@@ -58,8 +59,16 @@ struct SplashPage {
       await this.delay(minWaitTime - elapsed);
     }
 
-    // 跳转到主页
-    Router.replace(AppConstants.ROUTE_MAIN);
+    // 检查是否已完成入门测试
+    const hasCompletedTest = await userService.hasCompletedEntryTest();
+    
+    if (hasCompletedTest) {
+      // 已完成测试，跳转到主页
+      Router.replace(AppConstants.ROUTE_MAIN);
+    } else {
+      // 未完成测试，跳转到入门测试页
+      Router.replace('pages/EntryTestPage');
+    }
   }
 
   /**

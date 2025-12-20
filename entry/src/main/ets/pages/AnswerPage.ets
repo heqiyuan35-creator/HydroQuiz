@@ -5,12 +5,23 @@
 import { Router, RouteParams } from '../router/Router';
 import { ThemeColors } from '../theme/ThemeColors';
 import { ThemeConstants } from '../theme/ThemeConstants';
-import { Question, QuestionOption, QuestionType } from '../common/types/QuestionTypes';
-import { getSubjectShortName, getSubjectColor } from '../data/SubjectData';
+import { Question, QuestionOption, QuestionType, SubjectInfo } from '../common/types/QuestionTypes';
+import { getSubjectShortName, getSubjectColor, SUBJECT_LIST } from '../data/SubjectData';
 import { questionService, QuestionQuery } from '../services/QuestionService';
 import { answerRecordService, AnswerRecordInput, SubjectWrongStat } from '../services/AnswerRecordService';
 import { AppConstants } from '../common/constants/AppConstants';
 import { Logger } from '../common/utils/Logger';
+
+/**
+ * 科目错题统计接口
+ */
+interface SubjectWrongInfo {
+  subjectId: string;
+  subjectName: string;
+  shortName: string;
+  color: string;
+  wrongCount: number;
+}
 
 @Entry
 @Component
@@ -27,6 +38,9 @@ struct AnswerPage {
   @State answerStartTime: number = 0;
   @State showAnswerCard: boolean = false;
   @State answerResultMap: Map<string, boolean> = new Map(); // questionId -> isCorrect
+  // 练习完成分析弹窗
+  @State showAnalysisDialog: boolean = false;
+  @State analysisWeakSubjects: SubjectWrongInfo[] = [];
 
   // 当前题目
   @State currentQuestion: Question | null = null;
@@ -720,11 +734,207 @@ struct AnswerPage {
 
         this.PracticeAnswerCardPanel()
       }
+
+      // 练习完成分析弹窗
+      if (this.showAnalysisDialog) {
+        Column() {
+          Column()
+            .width('100%')
+            .height('100%')
+            .backgroundColor('rgba(0,0,0,0.5)')
+        }
+        .width('100%')
+        .height('100%')
+        .position({ x: 0, y: 0 })
+
+        Column() {
+          this.PracticeAnalysisDialog()
+        }
+        .width('100%')
+        .height('100%')
+        .justifyContent(FlexAlign.Center)
+        .alignItems(HorizontalAlign.Center)
+        .position({ x: 0, y: 0 })
+      }
     }
     .width('100%')
     .height('100%')
     .backgroundColor(this.isDarkMode ? ThemeColors.BACKGROUND_DARK : ThemeColors.BACKGROUND)
     .padding({ top: AppConstants.STATUS_BAR_HEIGHT })
+  }
+
+  /**
+   * 练习完成分析弹窗
+   */
+  @Builder
+  PracticeAnalysisDialog() {
+    Column() {
+      // 顶部结果区域
+      Column() {
+        Text('🎯')
+          .fontSize(36)
+
+        Text(this.getModeName() + '完成！')
+          .fontSize(18)
+          .fontWeight(FontWeight.Bold)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+          .margin({ top: 8 })
+
+        // 成绩统计
+        Row() {
+          this.ResultStatItem(`${this.userAnswers.size}`, '答题', ThemeColors.PRIMARY)
+          this.ResultStatItem(`${this.getCorrectCount()}`, '正确', ThemeColors.SUCCESS)
+          this.ResultStatItem(`${this.getWrongCount()}`, '错误', ThemeColors.ERROR)
+          this.ResultStatItem(`${this.userAnswers.size > 0 ? Math.round(this.getCorrectCount() / this.userAnswers.size * 100) : 0}%`, '正确率', ThemeColors.WARNING)
+        }
+        .width('100%')
+        .margin({ top: 16 })
+        .justifyContent(FlexAlign.SpaceEvenly)
+
+        // 正向反馈
+        Text(this.getPositiveFeedback())
+          .fontSize(13)
+          .fontColor(ThemeColors.TEXT_SECONDARY)
+          .margin({ top: 12 })
+      }
+      .width('100%')
+      .padding(20)
+
+      Divider().color(ThemeColors.GRAY_200)
+
+      // 薄弱科目分析
+      if (this.analysisWeakSubjects.length > 0) {
+        Column() {
+          Row() {
+            Text('📊 薄弱方向')
+              .fontSize(14)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeColors.TEXT_PRIMARY)
+          }
+          .width('100%')
+          .margin({ bottom: 10 })
+
+          ForEach(this.analysisWeakSubjects, (item: SubjectWrongInfo, index: number) => {
+            Row() {
+              // 排名
+              Text(`${index + 1}`)
+                .fontSize(11)
+                .fontColor(ThemeColors.WHITE)
+                .fontWeight(FontWeight.Bold)
+                .textAlign(TextAlign.Center)
+                .width(20)
+                .height(20)
+                .borderRadius(10)
+                .backgroundColor(index === 0 ? '#FF4D4F' : (index === 1 ? '#FF7A45' : '#FAAD14'))
+
+              // 科目名称
+              Text(item.shortName)
+                .fontSize(14)
+                .fontColor(ThemeColors.TEXT_PRIMARY)
+                .margin({ left: 8 })
+
+              // 错题数
+              Text(`${item.wrongCount}道`)
+                .fontSize(12)
+                .fontColor(ThemeColors.ERROR)
+                .margin({ left: 6 })
+
+              Blank()
+
+              // 练习按钮
+              Text('练习')
+                .fontSize(12)
+                .fontColor(ThemeColors.WHITE)
+                .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                .backgroundColor(item.color)
+                .borderRadius(12)
+                .onClick(() => {
+                  this.showAnalysisDialog = false;
+                  const params: RouteParams = {};
+                  params['subjectId'] = item.subjectId as Object;
+                  params['mode'] = 'subject' as Object;
+                  params['questionCount'] = 30 as Object;
+                  Router.replace('pages/AnswerPage', params);
+                })
+
+              // 知识按钮
+              Text('知识')
+                .fontSize(12)
+                .fontColor(item.color)
+                .padding({ left: 12, right: 12, top: 5, bottom: 5 })
+                .backgroundColor(item.color + '15')
+                .borderRadius(12)
+                .margin({ left: 8 })
+                .onClick(() => {
+                  this.showAnalysisDialog = false;
+                  const params: RouteParams = {};
+                  params['subjectId'] = item.subjectId as Object;
+                  Router.push('pages/KnowledgeListPage', params);
+                })
+            }
+            .width('100%')
+            .padding(10)
+            .margin({ bottom: 6 })
+            .backgroundColor(ThemeColors.GRAY_50)
+            .borderRadius(8)
+          }, (item: SubjectWrongInfo) => item.subjectId)
+        }
+        .width('100%')
+        .padding({ left: 16, right: 16, top: 12, bottom: 8 })
+      }
+
+      // 底部按钮
+      Row({ space: 12 }) {
+        Button('返回')
+          .layoutWeight(1)
+          .height(42)
+          .fontSize(14)
+          .fontColor(ThemeColors.TEXT_SECONDARY)
+          .backgroundColor(ThemeColors.GRAY_100)
+          .borderRadius(21)
+          .onClick(() => {
+            this.showAnalysisDialog = false;
+            Router.back();
+          })
+
+        Button('再来一组')
+          .layoutWeight(1)
+          .height(42)
+          .fontSize(14)
+          .fontColor(ThemeColors.WHITE)
+          .backgroundColor(ThemeColors.PRIMARY)
+          .borderRadius(21)
+          .onClick(() => {
+            this.showAnalysisDialog = false;
+            const params: RouteParams = {};
+            params['mode'] = this.mode as Object;
+            if (this.subjectId) {
+              params['subjectId'] = this.subjectId as Object;
+            }
+            Router.replace('pages/AnswerPage', params);
+          })
+      }
+      .width('100%')
+      .padding({ left: 16, right: 16, top: 8, bottom: 16 })
+    }
+    .width('85%')
+    .backgroundColor(ThemeColors.SURFACE)
+    .borderRadius(16)
+    .shadow({ radius: 16, color: 'rgba(0,0,0,0.1)', offsetY: 4 })
+  }
+
+  @Builder
+  ResultStatItem(value: string, label: string, color: ResourceColor) {
+    Column() {
+      Text(value)
+        .fontSize(24)
+        .fontWeight(FontWeight.Bold)
+        .fontColor(color)
+      Text(label)
+        .fontSize(11)
+        .fontColor(ThemeColors.TEXT_HINT)
+        .margin({ top: 2 })
+    }
   }
 
   /**
@@ -1110,7 +1320,8 @@ struct AnswerPage {
             if (this.currentIndex < this.questions.length - 1) {
               this.nextQuestion();
             } else {
-              Router.back();
+              // 完成练习，显示分析弹窗
+              this.showPracticeAnalysis();
             }
           })
       }
@@ -1118,6 +1329,99 @@ struct AnswerPage {
     .width('100%')
     .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_MD, bottom: 32 })
     .backgroundColor(this.isDarkMode ? ThemeColors.SURFACE_DARK : ThemeColors.SURFACE)
+  }
+
+  /**
+   * 显示练习完成分析
+   */
+  private showPracticeAnalysis(): void {
+    // 只有特定模式才显示分析弹窗
+    const analysisModels = ['daily', 'intensive', 'weakness', 'important'];
+    if (!analysisModels.includes(this.mode)) {
+      Router.back();
+      return;
+    }
+
+    // 计算本次练习的错题科目分布
+    this.analysisWeakSubjects = this.calculateWeakSubjects();
+    
+    // 如果没有错题，直接返回
+    if (this.getWrongCount() === 0) {
+      Router.back();
+      return;
+    }
+
+    this.showAnalysisDialog = true;
+  }
+
+  /**
+   * 计算薄弱科目（本次练习的错题分布）
+   */
+  private calculateWeakSubjects(): SubjectWrongInfo[] {
+    const subjectWrongMap: Map<string, number> = new Map();
+
+    // 统计每个科目的错题数
+    this.answerResultMap.forEach((isCorrect: boolean, questionId: string) => {
+      if (!isCorrect) {
+        const question = this.questions.find((q: Question) => q.id === questionId);
+        if (question) {
+          const count = subjectWrongMap.get(question.subjectId) || 0;
+          subjectWrongMap.set(question.subjectId, count + 1);
+        }
+      }
+    });
+
+    // 转换为数组并排序
+    const result: SubjectWrongInfo[] = [];
+    subjectWrongMap.forEach((wrongCount: number, subjectId: string) => {
+      const subject = SUBJECT_LIST.find((s: SubjectInfo) => s.id === subjectId);
+      if (subject) {
+        const info: SubjectWrongInfo = {
+          subjectId: subjectId,
+          subjectName: subject.name,
+          shortName: subject.shortName,
+          color: subject.color,
+          wrongCount: wrongCount
+        };
+        result.push(info);
+      }
+    });
+
+    // 按错题数量降序排序，取前3个
+    result.sort((a: SubjectWrongInfo, b: SubjectWrongInfo) => b.wrongCount - a.wrongCount);
+    return result.slice(0, 3);
+  }
+
+  /**
+   * 获取正向反馈文案
+   */
+  private getPositiveFeedback(): string {
+    const accuracy = this.userAnswers.size > 0 
+      ? Math.round(this.getCorrectCount() / this.userAnswers.size * 100) 
+      : 0;
+    
+    if (accuracy >= 90) {
+      return '太棒了！你的表现非常出色！🎉';
+    } else if (accuracy >= 70) {
+      return '做得不错！继续保持这个势头！💪';
+    } else if (accuracy >= 50) {
+      return '有进步空间，针对薄弱点多练习！📚';
+    } else {
+      return '别灰心，每次练习都是进步！加油！🌟';
+    }
+  }
+
+  /**
+   * 获取练习模式名称
+   */
+  private getModeName(): string {
+    switch (this.mode) {
+      case 'daily': return '每日一练';
+      case 'intensive': return '强化训练';
+      case 'weakness': return '专项练习';
+      case 'important': return '高频重点';
+      default: return '练习';
+    }
   }
 
   /**
