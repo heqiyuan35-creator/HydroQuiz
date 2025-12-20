@@ -22,8 +22,7 @@ import { SUBJECT_LIST } from '../data/SubjectData';
 import { SubjectInfo } from '../common/types/QuestionTypes';
 import { onboardingService } from '../services/OnboardingService';
 import { OnboardingGuideOverlay } from '../components/OnboardingGuideOverlay';
-import { GuideStep, AreaRect } from '../common/types/OnboardingTypes';
-import { componentUtils } from '@kit.ArkUI';
+import { GuideStep } from '../common/types/OnboardingTypes';
 
 /**
  * Tab项配置接口
@@ -86,11 +85,8 @@ struct MainTabPage {
   // 新手导引相关状态
   @State showOnboardingGuide: boolean = false;
   @State currentGuideStep: GuideStep | null = null;
-  @State guideTargetRect: AreaRect | null = null;
   @State guideProgressText: string = '';
   @State guideIsLastStep: boolean = false;
-  @State guideScreenWidth: number = 360;
-  @State guideScreenHeight: number = 800;
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
   private achievementCallback: AchievementUnlockCallback | null = null;
 
@@ -182,35 +178,6 @@ struct MainTabPage {
     if (this.currentGuideStep?.tabIndex !== undefined) {
       this.currentIndex = this.currentGuideStep.tabIndex;
       this.tabController.changeIndex(this.currentGuideStep.tabIndex);
-    }
-    // 延迟获取目标区域位置（等待Tab切换完成）
-    setTimeout(() => {
-      this.updateTargetRect();
-    }, 100);
-  }
-
-  /**
-   * 更新目标区域位置
-   */
-  private updateTargetRect(): void {
-    if (!this.currentGuideStep || !this.currentGuideStep.targetId) {
-      this.guideTargetRect = null;
-      return;
-    }
-    try {
-      const info = componentUtils.getRectangleById(this.currentGuideStep.targetId);
-      if (info && info.size.width > 0) {
-        this.guideTargetRect = {
-          x: info.windowOffset.x as number,
-          y: info.windowOffset.y as number,
-          width: info.size.width as number,
-          height: info.size.height as number
-        };
-      } else {
-        this.guideTargetRect = null;
-      }
-    } catch (e) {
-      this.guideTargetRect = null;
     }
   }
 
@@ -423,21 +390,14 @@ struct MainTabPage {
       OnboardingGuideOverlay({
         isVisible: this.showOnboardingGuide,
         currentStep: this.currentGuideStep,
-        targetRect: this.guideTargetRect,
         progressText: this.guideProgressText,
         isLastStep: this.guideIsLastStep,
-        screenWidth: this.guideScreenWidth,
-        screenHeight: this.guideScreenHeight,
         onNext: () => { this.handleGuideNext(); },
         onSkip: () => { this.handleGuideSkip(); }
       })
     }
     .width('100%')
     .height('100%')
-    .onAreaChange((oldValue: Area, newValue: Area) => {
-      this.guideScreenWidth = newValue.width as number;
-      this.guideScreenHeight = newValue.height as number;
-    })
   }
 
   /**

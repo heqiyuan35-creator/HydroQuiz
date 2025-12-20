@@ -13,10 +13,8 @@ export type CardPosition = 'top' | 'bottom' | 'center';
  */
 export interface GuideStep {
   id: string;                    // 步骤唯一标识
-  targetId: string;              // 目标组件ID（用于高亮框选）
   title: string;                 // 功能标题
   description: string;           // 功能描述
-  cardPosition: CardPosition;    // 说明卡片位置
   tabIndex?: number;             // 需要切换到的Tab索引（可选）
 }
 
@@ -30,90 +28,56 @@ export interface OnboardingState {
 }
 
 /**
- * 区域矩形接口
- */
-export interface AreaRect {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-/**
  * 导引步骤配置
- * 首页功能详细介绍 + 底部Tab导航
+ * 8个步骤：欢迎 + 首页功能介绍 + Tab导航介绍
  */
 export const GUIDE_STEPS: GuideStep[] = [
-  // 欢迎步骤（无高亮）
   {
     id: 'welcome',
-    targetId: '',
     title: '欢迎使用水利刷题宝！ 👋',
     description: '恭喜你完成了水平测试！接下来让我带你快速了解应用的主要功能，助你高效备考。',
-    cardPosition: 'center',
     tabIndex: 0
   },
-  // 首页 - 用户信息区
   {
     id: 'user-header',
-    targetId: 'guide-user-header',
     title: '个人信息',
-    description: '这里显示你的头像和昵称，点击右侧设置图标可以修改个人信息和学习计划。',
-    cardPosition: 'bottom',
+    description: '这里显示你的头像和昵称，点击右上角设置图标可以修改个人信息和学习计划。',
     tabIndex: 0
   },
-  // 首页 - 学习统计
   {
     id: 'daily-stats',
-    targetId: 'guide-daily-stats',
     title: '今日学习统计',
     description: '实时显示今日掌握度、连续打卡天数和刷题数量，点击可查看详情。',
-    cardPosition: 'bottom',
     tabIndex: 0
   },
-  // 首页 - 每日一练
   {
     id: 'daily-practice',
-    targetId: 'guide-daily-practice',
     title: '每日一练',
-    description: '每天完成设定的题目数量即可打卡，坚持打卡养成学习习惯！',
-    cardPosition: 'bottom',
+    description: '每天完成设定的题目数量即可打卡，坚持打卡养成学习习惯！向下滑动可以看到更多练习模式。',
     tabIndex: 0
   },
-  // 首页 - 强化训练
   {
     id: 'intensive',
-    targetId: 'guide-intensive',
-    title: '强化训练',
-    description: '100道综合随机题目，全面检验学习成果，适合考前冲刺。',
-    cardPosition: 'bottom',
+    title: '更多练习模式',
+    description: '除了每日一练，还有强化训练、专项练习、模拟考试等多种模式，满足不同学习需求。',
     tabIndex: 0
   },
-  // 题库Tab
   {
     id: 'tab-bank',
-    targetId: 'guide-tab-bank',
     title: '题库',
-    description: '按科目分类浏览所有题目，支持顺序练习、错题本和收藏夹功能。',
-    cardPosition: 'top',
+    description: '按科目分类浏览所有题目，支持顺序练习。还可以查看错题本和收藏夹。',
     tabIndex: 1
   },
-  // 知识库Tab
   {
     id: 'tab-knowledge',
-    targetId: 'guide-tab-knowledge',
     title: '知识库',
     description: '丰富的水利工程知识文章，帮助你理解考点、巩固记忆。',
-    cardPosition: 'top',
     tabIndex: 2
   },
-  // 我的Tab
   {
     id: 'tab-profile',
-    targetId: 'guide-tab-profile',
     title: '我的',
-    description: '查看学习统计、成就徽章，还可以在设置中调整学习计划。',
-    cardPosition: 'top',
+    description: '查看学习统计、成就徽章，还可以在设置中调整每日目标和学习计划。',
     tabIndex: 3
   }
 ];
