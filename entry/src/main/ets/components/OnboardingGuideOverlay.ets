@@ -20,7 +20,7 @@ export struct OnboardingGuideOverlay {
   onSkip: () => void = () => {};
 
   // 动画状态
-  @State opacity: number = 0;
+  @State maskOpacity: number = 0;
   @State cardOpacity: number = 0;
   @State cardTranslateY: number = 20;
 
@@ -33,7 +33,7 @@ export struct OnboardingGuideOverlay {
       duration: 300,
       curve: Curve.EaseOut
     }, () => {
-      this.opacity = 1;
+      this.maskOpacity = 1;
     });
     // 卡片延迟淡入
     setTimeout(() => {
@@ -116,7 +116,7 @@ export struct OnboardingGuideOverlay {
       duration: 200,
       curve: Curve.EaseIn
     }, () => {
-      this.opacity = 0;
+      this.maskOpacity = 0;
     });
     setTimeout(() => {
       this.onSkip();
@@ -131,7 +131,7 @@ export struct OnboardingGuideOverlay {
           .width('100%')
           .height('100%')
           .backgroundColor('rgba(0, 0, 0, 0.7)')
-          .opacity(this.opacity)
+          .opacity(this.maskOpacity)
 
         // 高亮区域（透明镂空效果）
         if (this.targetRect) {
@@ -149,7 +149,7 @@ export struct OnboardingGuideOverlay {
               color: ThemeColors.PRIMARY
             })
             .backgroundColor('rgba(255, 255, 255, 0.15)')
-            .opacity(this.opacity)
+            .opacity(this.maskOpacity)
         }
 
         // 说明卡片
