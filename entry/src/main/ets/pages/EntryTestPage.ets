@@ -13,6 +13,7 @@ import { answerRecordService, AnswerRecordInput } from '../services/AnswerRecord
 import { userService } from '../services/UserService';
 import { AppConstants } from '../common/constants/AppConstants';
 import { Logger } from '../common/utils/Logger';
+import { onboardingService } from '../services/OnboardingService';
 
 /**
  * 科目错题统计
@@ -904,7 +905,9 @@ struct EntryTestPage {
           .backgroundColor(ThemeColors.PRIMARY)
           .borderRadius(26)
           .margin({ top: 24, left: 16, right: 16, bottom: 40 })
-          .onClick(() => {
+          .onClick(async () => {
+            // 设置导引标记，进入主页后显示新手导引
+            await onboardingService.setShowGuideAfterTest(true);
             Router.replace('pages/MainTabPage');
           })
       }

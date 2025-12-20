@@ -11,6 +11,8 @@ import { answerRecordService } from '../services/AnswerRecordService';
 import { userService } from '../services/UserService';
 import { widgetDataService } from '../services/WidgetDataService';
 import { Logger } from '../common/utils/Logger';
+import { onboardingService } from '../services/OnboardingService';
+import { promptAction } from '@kit.ArkUI';
 
 @Entry
 @Component
@@ -53,6 +55,9 @@ struct SettingsPage {
 
             // 数据管理
             this.DataManagement()
+
+            // 帮助与支持
+            this.HelpSection()
 
             // 关于
             this.AboutSection()
@@ -245,6 +250,46 @@ struct SettingsPage {
         .padding(ThemeConstants.SPACING_MD)
         .onClick(() => {
           this.showClearDialog = true;
+        })
+      }
+      .backgroundColor(ThemeColors.SURFACE)
+      .borderRadius(ThemeConstants.RADIUS_MD)
+      .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+    }
+  }
+
+  @Builder
+  HelpSection() {
+    Column() {
+      Text('帮助与支持')
+        .fontSize(ThemeConstants.FONT_SIZE_SM)
+        .fontColor(ThemeColors.TEXT_HINT)
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_MD, bottom: ThemeConstants.SPACING_SM })
+
+      Column() {
+        // 重新查看新手导引
+        Row() {
+          Text('重新查看新手导引')
+            .fontSize(ThemeConstants.FONT_SIZE_BASE)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+            .layoutWeight(1)
+
+          Image($r('app.media.Rightarrow'))
+            .width(16)
+            .height(16)
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACING_MD)
+        .onClick(async () => {
+          // 重置导引状态并返回主页
+          await onboardingService.resetGuide();
+          await onboardingService.setShowGuideAfterTest(true);
+          promptAction.showToast({
+            message: '返回首页后将显示新手导引',
+            duration: 2000
+          });
+          Router.back();
         })
       }
       .backgroundColor(ThemeColors.SURFACE)

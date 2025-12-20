@@ -20,6 +20,9 @@ import { smartRecommendService, RecommendCard, SubjectProgress, RecommendType } 
 import { wrongStatisticsService, SubjectDistribution } from '../services/WrongStatisticsService';
 import { SUBJECT_LIST } from '../data/SubjectData';
 import { SubjectInfo } from '../common/types/QuestionTypes';
+import { onboardingService } from '../services/OnboardingService';
+import { OnboardingGuideOverlay } from '../components/OnboardingGuideOverlay';
+import { GuideStep, AreaRect } from '../common/types/OnboardingTypes';
 
 /**
  * Tab项配置接口
@@ -79,6 +82,12 @@ struct MainTabPage {
   @State subjectProgressList: SubjectProgress[] = [];
   // 错题科目分布（用于知识库推荐）
   @State wrongSubjectDistribution: SubjectDistribution[] = [];
+  // 新手导引相关状态
+  @State showOnboardingGuide: boolean = false;
+  @State currentGuideStep: GuideStep | null = null;
+  @State guideTargetRect: AreaRect | null = null;
+  @State guideProgressText: string = '';
+  @State guideIsLastStep: boolean = false;
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
   private achievementCallback: AchievementUnlockCallback | null = null;
 
@@ -128,6 +137,94 @@ struct MainTabPage {
 
     // 加载统计数据
     this.loadStatistics();
+
+    // 检查是否需要显示新手导引
+    this.checkOnboardingGuide();
+  }
+
+  /**
+   * 检查并启动新手导引
+   */
+  private async checkOnboardingGuide(): Promise<void> {
+    try {
+      const shouldShow = await onboardingService.shouldShowGuide();
+      if (shouldShow) {
+        // 延迟启动导引，等待页面渲染完成
+        setTimeout(() => {
+          this.startOnboardingGuide();
+        }, 500);
+      }
+    } catch (error) {
+      console.error('checkOnboardingGuide error:', error);
+    }
+  }
+
+  /**
+   * 启动新手导引
+   */
+  private startOnboardingGuide(): void {
+    onboardingService.startGuide();
+    this.updateGuideState();
+    this.showOnboardingGuide = true;
+  }
+
+  /**
+   * 更新导引状态
+   */
+  private updateGuideState(): void {
+    this.currentGuideStep = onboardingService.getCurrentStep();
+    this.guideProgressText = onboardingService.getProgressText();
+    this.guideIsLastStep = onboardingService.isLastStep();
+    // 更新目标区域位置
+    this.updateTargetRect();
+  }
+
+  /**
+   * 更新目标区域位置
+   */
+  private updateTargetRect(): void {
+    if (!this.currentGuideStep) {
+      this.guideTargetRect = null;
+      return;
+    }
+    // 根据步骤ID设置预定义的位置
+    // 由于ArkTS中获取组件位置较复杂，这里使用预定义位置
+    const targetId = this.currentGuideStep.targetId;
+    const rects: Record<string, AreaRect> = {
+      'home-header': { x: 16, y: 60, width: 358, height: 60 },
+      'learning-progress': { x: 16, y: 140, width: 358, height: 180 },
+      'practice-entry': { x: 16, y: 380, width: 170, height: 120 },
+      'exam-entry': { x: 16, y: 640, width: 358, height: 110 },
+      'wrong-entry': { x: 16, y: 510, width: 170, height: 120 },
+      'favorite-entry': { x: 200, y: 510, width: 170, height: 120 },
+      'tab-home': { x: 0, y: 750, width: 95, height: 56 },
+      'tab-bank': { x: 95, y: 750, width: 95, height: 56 },
+      'tab-knowledge': { x: 190, y: 750, width: 95, height: 56 },
+      'tab-profile': { x: 285, y: 750, width: 95, height: 56 }
+    };
+    this.guideTargetRect = rects[targetId] || null;
+  }
+
+  /**
+   * 处理导引下一步
+   */
+  private handleGuideNext(): void {
+    const hasNext = onboardingService.nextStep();
+    if (hasNext) {
+      this.updateGuideState();
+    } else {
+      // 导引完成
+      this.showOnboardingGuide = false;
+      onboardingService.completeGuide();
+    }
+  }
+
+  /**
+   * 处理导引跳过
+   */
+  private handleGuideSkip(): void {
+    this.showOnboardingGuide = false;
+    onboardingService.skipGuide();
   }
 
   aboutToDisappear(): void {
@@ -303,6 +400,17 @@ struct MainTabPage {
       if (this.showSpecialPracticeDialog) {
         this.SpecialPracticeDialog()
       }
+
+      // 新手导引遮罩
+      OnboardingGuideOverlay({
+        isVisible: this.showOnboardingGuide,
+        currentStep: this.currentGuideStep,
+        targetRect: this.guideTargetRect,
+        progressText: this.guideProgressText,
+        isLastStep: this.guideIsLastStep,
+        onNext: () => { this.handleGuideNext(); },
+        onSkip: () => { this.handleGuideSkip(); }
+      })
     }
     .width('100%')
     .height('100%')

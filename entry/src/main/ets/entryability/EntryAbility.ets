@@ -12,6 +12,7 @@ import { answerRecordService } from '../services/AnswerRecordService';
 import { widgetDataService } from '../services/WidgetDataService';
 import { initializationState } from '../common/utils/InitializationState';
 import { achievementService } from '../services/AchievementService';
+import { onboardingService } from '../services/OnboardingService';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'HydroQuiz';
@@ -59,6 +60,10 @@ export default class EntryAbility extends UIAbility {
       // 初始化成就服务
       await achievementService.init(this.context);
       hilog.info(DOMAIN, TAG, 'Achievement service initialized');
+
+      // 初始化新手导引服务
+      await onboardingService.init(this.context);
+      hilog.info(DOMAIN, TAG, 'Onboarding service initialized');
 
       // 同步当前数据到卡片 Preferences
       await this.syncWidgetData();
