@@ -804,51 +804,128 @@ struct AnswerPage {
   @Builder
   AnswerAnalysis() {
     Column() {
-      // 结果提示
+      // 结果提示卡片
       Row() {
-        Text(this.isAnswerCorrect() ? '✓ 回答正确' : '✗ 回答错误')
-          .fontSize(ThemeConstants.FONT_SIZE_MD)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(this.isAnswerCorrect() ? ThemeColors.SUCCESS : ThemeColors.ERROR)
+        // 结果图标
+        Column() {
+          Text(this.isAnswerCorrect() ? '✓' : '✗')
+            .fontSize(28)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.WHITE)
+        }
+        .width(56)
+        .height(56)
+        .borderRadius(28)
+        .backgroundColor(this.isAnswerCorrect() ? ThemeColors.SUCCESS : ThemeColors.ERROR)
+        .justifyContent(FlexAlign.Center)
+
+        Column() {
+          Text(this.isAnswerCorrect() ? '回答正确！' : '回答错误')
+            .fontSize(ThemeConstants.FONT_SIZE_LG)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(this.isAnswerCorrect() ? ThemeColors.SUCCESS : ThemeColors.ERROR)
+
+          Text(this.isAnswerCorrect() ? '继续保持，你很棒！' : '别灰心，看看解析吧')
+            .fontSize(ThemeConstants.FONT_SIZE_SM)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .margin({ top: 4 })
+        }
+        .alignItems(HorizontalAlign.Start)
+        .margin({ left: ThemeConstants.SPACING_MD })
       }
       .width('100%')
-      .padding({ bottom: ThemeConstants.SPACING_SM })
+      .padding(ThemeConstants.SPACING_MD)
+      .backgroundColor(this.isAnswerCorrect() ? 'rgba(82, 196, 26, 0.1)' : 'rgba(255, 77, 79, 0.1)')
+      .borderRadius(ThemeConstants.RADIUS_MD)
 
-      // 正确答案
-      Row() {
-        Text('正确答案：')
-          .fontSize(ThemeConstants.FONT_SIZE_BASE)
-          .fontColor(ThemeColors.TEXT_SECONDARY)
+      // 答案对比
+      Column() {
+        Row() {
+          Text('📝')
+            .fontSize(16)
+          Text(' 答案对比')
+            .fontSize(ThemeConstants.FONT_SIZE_BASE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+        }
+        .width('100%')
 
-        Text(this.currentQuestion!.answer)
-          .fontSize(ThemeConstants.FONT_SIZE_BASE)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeColors.SUCCESS)
+        Row() {
+          Column() {
+            Text('你的答案')
+              .fontSize(ThemeConstants.FONT_SIZE_XS)
+              .fontColor(ThemeColors.TEXT_HINT)
+            Text(this.selectedOptions.sort().join(', '))
+              .fontSize(ThemeConstants.FONT_SIZE_MD)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.isAnswerCorrect() ? ThemeColors.SUCCESS : ThemeColors.ERROR)
+              .margin({ top: 4 })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Center)
+          .padding(ThemeConstants.SPACING_SM)
+          .backgroundColor(ThemeColors.GRAY_100)
+          .borderRadius(ThemeConstants.RADIUS_SM)
+
+          Text('→')
+            .fontSize(20)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .margin({ left: 12, right: 12 })
+
+          Column() {
+            Text('正确答案')
+              .fontSize(ThemeConstants.FONT_SIZE_XS)
+              .fontColor(ThemeColors.TEXT_HINT)
+            Text(this.currentQuestion!.answer)
+              .fontSize(ThemeConstants.FONT_SIZE_MD)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(ThemeColors.SUCCESS)
+              .margin({ top: 4 })
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Center)
+          .padding(ThemeConstants.SPACING_SM)
+          .backgroundColor('rgba(82, 196, 26, 0.1)')
+          .borderRadius(ThemeConstants.RADIUS_SM)
+        }
+        .width('100%')
+        .margin({ top: ThemeConstants.SPACING_SM })
       }
       .width('100%')
+      .padding(ThemeConstants.SPACING_MD)
+      .margin({ top: ThemeConstants.SPACING_SM })
+      .backgroundColor(ThemeColors.SURFACE)
+      .borderRadius(ThemeConstants.RADIUS_MD)
+      .border({ width: 1, color: ThemeColors.GRAY_200 })
 
       // 解析
       Column() {
-        Text('解析：')
-          .fontSize(ThemeConstants.FONT_SIZE_BASE)
-          .fontWeight(FontWeight.Medium)
-          .fontColor(ThemeColors.TEXT_PRIMARY)
+        Row() {
+          Text('💡')
+            .fontSize(16)
+          Text(' 题目解析')
+            .fontSize(ThemeConstants.FONT_SIZE_BASE)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+        }
+        .width('100%')
 
-        Text(this.currentQuestion!.analysis)
+        Text(this.currentQuestion!.analysis || '暂无解析')
           .fontSize(ThemeConstants.FONT_SIZE_BASE)
           .fontColor(ThemeColors.TEXT_SECONDARY)
-          .lineHeight(22)
-          .margin({ top: ThemeConstants.SPACING_XS })
+          .lineHeight(24)
+          .margin({ top: ThemeConstants.SPACING_SM })
       }
       .width('100%')
-      .alignItems(HorizontalAlign.Start)
+      .padding(ThemeConstants.SPACING_MD)
       .margin({ top: ThemeConstants.SPACING_SM })
+      .backgroundColor(ThemeColors.SURFACE)
+      .borderRadius(ThemeConstants.RADIUS_MD)
+      .border({ width: 1, color: ThemeColors.GRAY_200 })
+      .alignItems(HorizontalAlign.Start)
     }
     .width('100%')
-    .padding(ThemeConstants.SPACING_MD)
     .margin({ top: ThemeConstants.SPACING_MD })
-    .backgroundColor(this.isDarkMode ? ThemeColors.SURFACE_DARK : ThemeColors.SURFACE)
-    .borderRadius(ThemeConstants.RADIUS_MD)
   }
 
   /**
