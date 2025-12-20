@@ -159,7 +159,6 @@ export struct OnboardingGuideOverlay {
       }
       .width('100%')
       .height('100%')
-      .justifyContent(FlexAlign.Center)
       .alignContent(Alignment.Center)
     }
   }
