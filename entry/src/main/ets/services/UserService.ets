@@ -28,6 +28,14 @@ export interface EntryTestResult {
 }
 
 /**
+ * 打卡结果接口
+ */
+export interface CheckInResult {
+  success: boolean;
+  streakDays: number;
+}
+
+/**
  * 默认用户信息
  */
 const DEFAULT_USER: UserInfo = {
@@ -274,14 +282,33 @@ class UserService {
   }
 
   /**
+   * 获取日期字符串（本地时间，格式：YYYY-MM-DD）
+   */
+  private getDateString(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  }
+
+  /**
    * 获取今日打卡日期（本地时间，格式：YYYY-MM-DD）
    */
   private getTodayDateString(): string {
+    return this.getDateString(new Date());
+  }
+
+  /**
+   * 获取本周的起始日期（周一）
+   */
+  private getWeekStartDate(): Date {
     const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    const dayOfWeek = now.getDay(); // 0=周日, 1=周一, ..., 6=周六
+    const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // 计算距离周一的天数
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diff);
+    monday.setHours(0, 0, 0, 0);
+    return monday;
   }
 
   /**
@@ -301,20 +328,171 @@ class UserService {
   }
 
   /**
-   * 执行今日打卡
+   * 执行今日打卡，同时更新周打卡记录和连续打卡天数
    */
-  async checkInToday(): Promise<boolean> {
+  async checkInToday(): Promise<CheckInResult> {
+    const failResult: CheckInResult = { success: false, streakDays: 0 };
     if (!this.preferences) {
-      return false;
+      return failResult;
     }
     try {
-      await this.preferences.put('lastCheckInDate', this.getTodayDateString());
+      const today = this.getTodayDateString();
+      const lastCheckIn = await this.preferences.get('lastCheckInDate', '') as string;
+
+      // 如果今天已经打卡，直接返回
+      if (lastCheckIn === today) {
+        const streakDays = await this.getStreakDays();
+        const result: CheckInResult = { success: true, streakDays: streakDays };
+        return result;
+      }
+
+      // 计算连续打卡天数
+      let streakDays = await this.getStreakDays();
+      if (lastCheckIn) {
+        const lastDate = new Date(lastCheckIn);
+        const todayDate = new Date(today);
+        const diffTime = todayDate.getTime() - lastDate.getTime();
+        const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000));
+
+        if (diffDays === 1) {
+          // 连续打卡
+          streakDays += 1;
+        } else if (diffDays > 1) {
+          // 中断了，重新开始
+          streakDays = 1;
+        }
+      } else {
+        // 第一次打卡
+        streakDays = 1;
+      }
+
+      // 保存打卡日期
+      await this.preferences.put('lastCheckInDate', today);
+      // 保存连续打卡天数
+      await this.preferences.put('streakDays', streakDays);
+      // 更新周打卡记录
+      await this.addWeeklyCheckInRecord(today);
+
       await this.preferences.flush();
-      Logger.info('[UserService] Check-in successful');
-      return true;
+      Logger.info(`[UserService] Check-in successful, streak: ${streakDays} days`);
+      const successResult: CheckInResult = { success: true, streakDays: streakDays };
+      return successResult;
     } catch (error) {
       Logger.error('[UserService] Check-in failed', error as Error);
-      return false;
+      return failResult;
+    }
+  }
+
+  /**
+   * 获取连续打卡天数
+   */
+  async getStreakDays(): Promise<number> {
+    if (!this.preferences) {
+      return 0;
+    }
+    try {
+      // 先检查连续性是否中断
+      const lastCheckIn = await this.preferences.get('lastCheckInDate', '') as string;
+      if (!lastCheckIn) {
+        return 0;
+      }
+
+      const lastDate = new Date(lastCheckIn);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      lastDate.setHours(0, 0, 0, 0);
+
+      const diffTime = today.getTime() - lastDate.getTime();
+      const diffDays = Math.floor(diffTime / (24 * 60 * 60 * 1000));
+
+      // 如果超过1天没打卡，连续天数归零
+      if (diffDays > 1) {
+        await this.preferences.put('streakDays', 0);
+        await this.preferences.flush();
+        return 0;
+      }
+
+      const streakDays = await this.preferences.get('streakDays', 0) as number;
+      return streakDays;
+    } catch (error) {
+      Logger.error('[UserService] Get streak days failed', error as Error);
+      return 0;
+    }
+  }
+
+  /**
+   * 添加周打卡记录
+   */
+  private async addWeeklyCheckInRecord(dateStr: string): Promise<void> {
+    if (!this.preferences) return;
+
+    try {
+      const weekStart = this.getWeekStartDate();
+      const weekStartStr = this.getDateString(weekStart);
+
+      // 获取当前周的打卡记录
+      let weeklyRecordsStr = await this.preferences.get('weeklyCheckInRecords', '') as string;
+      let weeklyRecordsWeek = await this.preferences.get('weeklyCheckInWeek', '') as string;
+
+      // 如果是新的一周，清空记录
+      if (weeklyRecordsWeek !== weekStartStr) {
+        weeklyRecordsStr = '';
+        weeklyRecordsWeek = weekStartStr;
+      }
+
+      // 添加今天的打卡记录
+      const records = weeklyRecordsStr ? weeklyRecordsStr.split(',') : [];
+      if (!records.includes(dateStr)) {
+        records.push(dateStr);
+      }
+
+      await this.preferences.put('weeklyCheckInRecords', records.join(','));
+      await this.preferences.put('weeklyCheckInWeek', weekStartStr);
+    } catch (error) {
+      Logger.error('[UserService] Add weekly check-in record failed', error as Error);
+    }
+  }
+
+  /**
+   * 获取本周打卡记录（返回已打卡的星期几数组，1=周一，7=周日）
+   */
+  async getWeeklyCheckInDays(): Promise<number[]> {
+    if (!this.preferences) {
+      return [];
+    }
+    try {
+      const weekStart = this.getWeekStartDate();
+      const weekStartStr = this.getDateString(weekStart);
+
+      // 检查是否是当前周的记录
+      const weeklyRecordsWeek = await this.preferences.get('weeklyCheckInWeek', '') as string;
+      if (weeklyRecordsWeek !== weekStartStr) {
+        // 不是当前周，返回空
+        return [];
+      }
+
+      const weeklyRecordsStr = await this.preferences.get('weeklyCheckInRecords', '') as string;
+      if (!weeklyRecordsStr) {
+        return [];
+      }
+
+      const records = weeklyRecordsStr.split(',');
+      const checkedDays: number[] = [];
+
+      records.forEach((dateStr: string) => {
+        const date = new Date(dateStr);
+        let dayOfWeek = date.getDay(); // 0=周日, 1=周一, ..., 6=周六
+        // 转换为 1=周一, 7=周日
+        dayOfWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+        if (!checkedDays.includes(dayOfWeek)) {
+          checkedDays.push(dayOfWeek);
+        }
+      });
+
+      return checkedDays;
+    } catch (error) {
+      Logger.error('[UserService] Get weekly check-in days failed', error as Error);
+      return [];
     }
   }
 

@@ -28,6 +28,11 @@
     "pages/ExamScorePage",
     "pages/AchievementPage",
     "pages/ExamAnswerPage",
-    "pages/EntryTestPage"
+    "pages/EntryTestPage",
+    "pages/GameModePage",
+    "pages/GameLevelPage",
+    "pages/GameResultPage",
+    "pages/CardCollectionPage",
+    "pages/CardAlbumPage"
   ]
 }

@@ -61,6 +61,10 @@ struct MainTabPage {
   @State weeklyPlanDays: number[] = [1, 2, 3, 4, 5, 6, 7];
   @State hasCheckedIn: boolean = false;
   @State showCheckInSuccess: boolean = false;
+  // 周打卡记录（已打卡的星期几数组）
+  @State weeklyCheckedDays: number[] = [];
+  // 连续打卡天数
+  @State streakDays: number = 0;
   // 专项练习选择对话框
   @State showSpecialPracticeDialog: boolean = false;
   // 科目列表（从题库服务获取）
@@ -87,6 +91,17 @@ struct MainTabPage {
   @State currentGuideStep: GuideStep | null = null;
   @State guideProgressText: string = '';
   @State guideIsLastStep: boolean = false;
+  // Tab动画状态
+  @State tabScales: number[] = [1, 1, 1, 1];
+  @State tabOffsetY: number[] = [0, 0, 0, 0];
+  // 打卡成功动画状态
+  @State checkInDialogScale: number = 0.8;
+  @State checkInDialogOpacity: number = 0;
+  @State checkInEmojiScale: number = 0;
+  // 成就解锁动画状态
+  @State achievementDialogScale: number = 0.5;
+  @State achievementDialogOpacity: number = 0;
+  @State achievementIconScale: number = 0;
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
   private achievementCallback: AchievementUnlockCallback | null = null;
 
@@ -131,6 +146,8 @@ struct MainTabPage {
     this.achievementCallback = (achievement: Achievement) => {
       this.unlockedAchievement = achievement;
       this.showAchievementDialog = true;
+      // 触发成就解锁动画
+      this.playAchievementUnlockAnimation();
     };
     achievementNotificationService.register(this.achievementCallback);
 
@@ -243,6 +260,10 @@ struct MainTabPage {
       this.dailyGoal = await userService.getDailyGoal();
       // 加载今日打卡状态
       this.hasCheckedIn = await userService.hasCheckedInToday();
+      // 加载周打卡记录
+      this.weeklyCheckedDays = await userService.getWeeklyCheckInDays();
+      // 加载连续打卡天数
+      this.streakDays = await userService.getStreakDays();
       // 加载周计划
       this.weeklyPlanDays = await userService.getWeeklyPlanDays();
       // 加载科目列表（含题目数量）- 使用统一的题库服务，强制刷新
@@ -276,6 +297,29 @@ struct MainTabPage {
   }
 
   /**
+   * Tab点击弹跳动画
+   */
+  private playTabBounce(index: number): void {
+    // 缩放动画
+    animateTo({ duration: 100, curve: Curve.EaseOut }, () => {
+      this.tabScales[index] = 0.85;
+      this.tabOffsetY[index] = -4;
+    });
+    setTimeout(() => {
+      animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
+        this.tabScales[index] = 1.05;
+        this.tabOffsetY[index] = -2;
+      });
+    }, 100);
+    setTimeout(() => {
+      animateTo({ duration: 150, curve: Curve.EaseInOut }, () => {
+        this.tabScales[index] = 1;
+        this.tabOffsetY[index] = 0;
+      });
+    }, 300);
+  }
+
+  /**
    * 构建Tab栏项
    */
   @Builder
@@ -295,7 +339,12 @@ struct MainTabPage {
     .width('100%')
     .height('100%')
     .justifyContent(FlexAlign.Center)
+    .scale({ x: this.tabScales[index], y: this.tabScales[index] })
+    .translate({ y: this.tabOffsetY[index] })
     .onClick(() => {
+      if (this.currentIndex !== index) {
+        this.playTabBounce(index);
+      }
       this.currentIndex = index;
       this.tabController.changeIndex(index);
     })
@@ -612,6 +661,7 @@ struct MainTabPage {
         Text(this.unlockedAchievement?.icon || '')
           .fontSize(56)
           .margin({ top: 20 })
+          .scale({ x: this.achievementIconScale, y: this.achievementIconScale })
         Text(this.unlockedAchievement?.name || '')
           .fontSize(22).fontWeight(FontWeight.Bold).fontColor(ThemeColors.TEXT_PRIMARY)
           .margin({ top: 12 })
@@ -633,6 +683,8 @@ struct MainTabPage {
     .width('85%')
     .position({ x: '7.5%', y: '25%' })
     .shadow({ radius: 20, color: 'rgba(0,0,0,0.3)', offsetY: 10 })
+    .scale({ x: this.achievementDialogScale, y: this.achievementDialogScale })
+    .opacity(this.achievementDialogOpacity)
   }
 
 
@@ -748,6 +800,7 @@ struct MainTabPage {
 
         Text('🎉')
           .fontSize(48)
+          .scale({ x: this.checkInEmojiScale, y: this.checkInEmojiScale })
       }
       .margin({ top: -50 })
 
@@ -797,6 +850,8 @@ struct MainTabPage {
     .borderRadius(ThemeConstants.RADIUS_XL)
     .shadow({ radius: 24, color: 'rgba(0,0,0,0.15)', offsetX: 0, offsetY: 12 })
     .position({ x: '7.5%', y: '28%' })
+    .scale({ x: this.checkInDialogScale, y: this.checkInDialogScale })
+    .opacity(this.checkInDialogOpacity)
   }
 
 
@@ -1244,7 +1299,7 @@ struct MainTabPage {
           Row() {
             Text('🔥')
               .fontSize(20)
-            Text(`${this.isTodayChecked() ? 1 : 0}`)
+            Text(`${this.streakDays}`)
               .fontSize(26)
               .fontWeight(FontWeight.Bold)
               .fontColor(ThemeColors.WARNING)
@@ -1753,7 +1808,8 @@ struct MainTabPage {
       }
       .width('100%')
       .height(110)
-      .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+      .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+      .margin({ top: ThemeConstants.SPACING_SM })
       .borderRadius(ThemeConstants.RADIUS_LG)
       .shadow({ radius: 12, color: 'rgba(114, 46, 209, 0.3)', offsetX: 0, offsetY: 6 })
       .onClick(() => {
@@ -1763,6 +1819,7 @@ struct MainTabPage {
     .width('100%')
     .margin({ top: ThemeConstants.SPACING_LG })
   }
+
   /**
    * 获取本周日期范围
    */
@@ -1798,13 +1855,14 @@ struct MainTabPage {
   }
 
   /**
-   * 判断某天是否已打卡（手动打卡）
+   * 判断某天是否已打卡（基于周打卡记录）
    */
   private isDayChecked(dayIndex: number): boolean {
     if (!this.isDayInPlan(dayIndex)) {
       return false;
     }
-    return dayIndex === this.getTodayWeekDay() && this.hasCheckedIn;
+    // 检查该天是否在本周打卡记录中
+    return this.weeklyCheckedDays.includes(dayIndex);
   }
 
   /**
@@ -1843,12 +1901,77 @@ struct MainTabPage {
       return;
     }
 
-    const success = await userService.checkInToday();
-    if (success) {
+    const result = await userService.checkInToday();
+    if (result.success) {
       this.hasCheckedIn = true;
+      this.streakDays = result.streakDays;
+      // 更新周打卡记录
+      this.weeklyCheckedDays = await userService.getWeeklyCheckInDays();
       this.showCheckInSuccess = true;
-      widgetDataService.updateCheckInStatus(true, 1);
+      // 触发打卡成功动画
+      this.playCheckInSuccessAnimation();
+      widgetDataService.updateCheckInStatus(true, result.streakDays);
     }
+  }
+
+  /**
+   * 播放打卡成功动画
+   */
+  private playCheckInSuccessAnimation(): void {
+    // 重置动画状态
+    this.checkInDialogScale = 0.8;
+    this.checkInDialogOpacity = 0;
+    this.checkInEmojiScale = 0;
+
+    // 弹窗入场动画
+    setTimeout(() => {
+      animateTo({ duration: 300, curve: Curve.EaseOut }, () => {
+        this.checkInDialogScale = 1;
+        this.checkInDialogOpacity = 1;
+      });
+    }, 50);
+
+    // 表情弹跳动画
+    setTimeout(() => {
+      animateTo({ duration: 400, curve: Curve.EaseOut }, () => {
+        this.checkInEmojiScale = 1.2;
+      });
+    }, 200);
+    setTimeout(() => {
+      animateTo({ duration: 200, curve: Curve.EaseInOut }, () => {
+        this.checkInEmojiScale = 1;
+      });
+    }, 600);
+  }
+
+  /**
+   * 播放成就解锁动画
+   */
+  private playAchievementUnlockAnimation(): void {
+    // 重置动画状态
+    this.achievementDialogScale = 0.5;
+    this.achievementDialogOpacity = 0;
+    this.achievementIconScale = 0;
+
+    // 弹窗入场动画
+    setTimeout(() => {
+      animateTo({ duration: 350, curve: Curve.EaseOut }, () => {
+        this.achievementDialogScale = 1;
+        this.achievementDialogOpacity = 1;
+      });
+    }, 50);
+
+    // 成就图标弹跳动画
+    setTimeout(() => {
+      animateTo({ duration: 500, curve: Curve.EaseOut }, () => {
+        this.achievementIconScale = 1.3;
+      });
+    }, 300);
+    setTimeout(() => {
+      animateTo({ duration: 300, curve: Curve.EaseInOut }, () => {
+        this.achievementIconScale = 1;
+      });
+    }, 800);
   }
 
   /**
@@ -1964,7 +2087,7 @@ struct MainTabPage {
     Column() {
       // 顶部标题栏
       Row() {
-        Text('题库分类')
+        Text('刷题中心')
           .fontSize(ThemeConstants.FONT_SIZE_XL)
           .fontWeight(FontWeight.Bold)
           .fontColor(ThemeColors.TEXT_PRIMARY)
@@ -1991,6 +2114,12 @@ struct MainTabPage {
 
       Scroll() {
         Column() {
+          // 答题闯关入口
+          this.GameModeEntryCard()
+
+          // 我的卡册入口
+          this.CardAlbumEntryCard()
+
           // 总体进度卡片
           this.QuestionBankProgressCard()
 
@@ -2025,6 +2154,140 @@ struct MainTabPage {
     }
     .width('100%')
     .height('100%')
+  }
+
+  /**
+   * 答题闯关入口卡片
+   */
+  @Builder
+  GameModeEntryCard() {
+    Row() {
+      // 左侧信息
+      Column() {
+        Row() {
+          Text('🎮')
+            .fontSize(24)
+          Text(' 答题闯关')
+            .fontSize(ThemeConstants.FONT_SIZE_LG)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.WHITE)
+        }
+
+        Text('游戏化学习，闯关拿星星')
+          .fontSize(ThemeConstants.FONT_SIZE_SM)
+          .fontColor(ThemeColors.WHITE)
+          .opacity(0.9)
+          .margin({ top: 6 })
+
+        Row() {
+          Text('开始闯关')
+            .fontSize(ThemeConstants.FONT_SIZE_SM)
+            .fontColor('#FF6B6B')
+            .fontWeight(FontWeight.Medium)
+          Image($r('app.media.Rightarrow'))
+            .width(14)
+            .height(14)
+            .fillColor('#FF6B6B')
+            .margin({ left: 4 })
+        }
+        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+        .backgroundColor(ThemeColors.WHITE)
+        .borderRadius(16)
+        .margin({ top: 12 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      // 右侧装饰
+      Column() {
+        Text('⭐')
+          .fontSize(40)
+      }
+      .width(60)
+      .height(60)
+      .borderRadius(30)
+      .backgroundColor('rgba(255,255,255,0.2)')
+      .justifyContent(FlexAlign.Center)
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACING_MD)
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+    .borderRadius(ThemeConstants.RADIUS_LG)
+    .linearGradient({
+      angle: 135,
+      colors: [['#FF6B6B', 0], ['#FF8E53', 1]]
+    })
+    .shadow({ radius: 12, color: 'rgba(255, 107, 107, 0.3)', offsetX: 0, offsetY: 6 })
+    .onClick(() => {
+      Router.push('pages/GameModePage');
+    })
+  }
+
+  /**
+   * 我的卡册入口卡片
+   */
+  @Builder
+  CardAlbumEntryCard() {
+    Row() {
+      // 左侧信息
+      Column() {
+        Row() {
+          Text('🎴')
+            .fontSize(24)
+          Text(' 我的卡册')
+            .fontSize(ThemeConstants.FONT_SIZE_LG)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.WHITE)
+        }
+
+        Text('答题收集知识卡片')
+          .fontSize(ThemeConstants.FONT_SIZE_SM)
+          .fontColor(ThemeColors.WHITE)
+          .opacity(0.9)
+          .margin({ top: 6 })
+
+        Row() {
+          Text('查看卡册')
+            .fontSize(ThemeConstants.FONT_SIZE_SM)
+            .fontColor('#9C27B0')
+            .fontWeight(FontWeight.Medium)
+          Image($r('app.media.Rightarrow'))
+            .width(14)
+            .height(14)
+            .fillColor('#9C27B0')
+            .margin({ left: 4 })
+        }
+        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+        .backgroundColor(ThemeColors.WHITE)
+        .borderRadius(16)
+        .margin({ top: 12 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      // 右侧装饰
+      Column() {
+        Text('✨')
+          .fontSize(40)
+      }
+      .width(60)
+      .height(60)
+      .borderRadius(30)
+      .backgroundColor('rgba(255,255,255,0.2)')
+      .justifyContent(FlexAlign.Center)
+    }
+    .width('100%')
+    .padding(ThemeConstants.SPACING_MD)
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+    .borderRadius(ThemeConstants.RADIUS_LG)
+    .linearGradient({
+      angle: 135,
+      colors: [['#9C27B0', 0], ['#E040FB', 1]]
+    })
+    .shadow({ radius: 12, color: 'rgba(156, 39, 176, 0.3)', offsetX: 0, offsetY: 6 })
+    .onClick(() => {
+      Router.push('pages/CardAlbumPage');
+    })
   }
 
   /**

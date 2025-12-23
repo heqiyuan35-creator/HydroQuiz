@@ -11,6 +11,9 @@ import { questionService, QuestionQuery } from '../services/QuestionService';
 import { answerRecordService, AnswerRecordInput, SubjectWrongStat } from '../services/AnswerRecordService';
 import { AppConstants } from '../common/constants/AppConstants';
 import { Logger } from '../common/utils/Logger';
+import { cardDropService } from '../services/CardDropService';
+import { DroppedCard, DropSource } from '../common/types/CardTypes';
+import { CardDropPopup } from '../components/CardDropPopup';
 
 /**
  * 科目错题统计接口
@@ -57,6 +60,14 @@ struct AnswerPage {
   @State remainingTime: number = 0; // 剩余时间
   @State isTimedMode: boolean = false; // 是否限时模式
   @State questionCount: number = 0; // 练习题目数量
+  // 选项点击动画状态
+  @State optionScales: Map<string, number> = new Map();
+  // 收藏按钮动画状态
+  @State favoriteScale: number = 1;
+  // 卡片掉落相关
+  @State droppedCards: DroppedCard[] = []; // 本次练习获得的卡片
+  @State showCardDropPopup: boolean = false; // 是否显示卡片掉落弹窗
+  @State currentDroppedCard: DroppedCard | null = null; // 当前显示的掉落卡片
   private timerInterval: number = -1; // 计时器ID
 
   aboutToAppear(): void {
@@ -510,12 +521,49 @@ struct AnswerPage {
       await answerRecordService.saveAnswerRecord(recordInput);
       // 记录答题结果
       this.answerResultMap.set(question.id, isCorrect);
+      
+      // 卡片掉落判定（非考试模式）
+      await this.tryCardDrop(isCorrect, question);
     } catch (error) {
       Logger.error('[AnswerPage] Failed to save answer record', error as Error);
     }
 
     // 显示答案
     this.showAnswer = true;
+  }
+
+  /**
+   * 尝试卡片掉落
+   */
+  private async tryCardDrop(isCorrect: boolean, question: Question): Promise<void> {
+    try {
+      const source: DropSource = {
+        questionId: question.id,
+        subjectId: question.subjectId,
+        mode: this.mode
+      };
+      
+      const droppedCard = await cardDropService.tryDrop(isCorrect, false, source);
+      
+      if (droppedCard) {
+        // 收集掉落的卡片
+        this.droppedCards.push(droppedCard);
+        // 立即显示掉落弹窗
+        this.currentDroppedCard = droppedCard;
+        this.showCardDropPopup = true;
+        Logger.info(`[AnswerPage] Card dropped: ${droppedCard.card.name}`);
+      }
+    } catch (error) {
+      Logger.error('[AnswerPage] Card drop failed', error as Error);
+    }
+  }
+
+  /**
+   * 关闭卡片掉落弹窗
+   */
+  private closeCardDropPopup(): void {
+    this.showCardDropPopup = false;
+    this.currentDroppedCard = null;
   }
 
   /**
@@ -755,6 +803,16 @@ struct AnswerPage {
         .justifyContent(FlexAlign.Center)
         .alignItems(HorizontalAlign.Center)
         .position({ x: 0, y: 0 })
+      }
+
+      // 卡片掉落弹窗
+      if (this.showCardDropPopup && this.currentDroppedCard) {
+        CardDropPopup({
+          droppedCard: this.currentDroppedCard,
+          onClose: () => {
+            this.closeCardDropPopup();
+          }
+        })
       }
     }
     .width('100%')
@@ -999,7 +1057,17 @@ struct AnswerPage {
       .width(40)
       .height(40)
       .justifyContent(FlexAlign.Center)
+      .scale({ x: this.favoriteScale, y: this.favoriteScale })
       .onClick(() => {
+        // 收藏动画
+        animateTo({ duration: 150, curve: Curve.EaseOut }, () => {
+          this.favoriteScale = 1.3;
+        });
+        setTimeout(() => {
+          animateTo({ duration: 200, curve: Curve.EaseOut }, () => {
+            this.favoriteScale = 1;
+          });
+        }, 150);
         this.toggleFavorite();
       })
     }
@@ -1113,7 +1181,19 @@ struct AnswerPage {
       width: 1,
       color: this.getOptionBorderColor(option.key)
     })
+    .scale({ x: this.optionScales.get(option.key) ?? 1, y: this.optionScales.get(option.key) ?? 1 })
     .onClick(() => {
+      // 点击缩放动画
+      this.optionScales.set(option.key, 0.95);
+      animateTo({ duration: 100, curve: Curve.EaseOut }, () => {
+        this.optionScales = new Map(this.optionScales);
+      });
+      setTimeout(() => {
+        this.optionScales.set(option.key, 1);
+        animateTo({ duration: 150, curve: Curve.EaseOut }, () => {
+          this.optionScales = new Map(this.optionScales);
+        });
+      }, 100);
       this.selectOption(option.key);
     })
   }

@@ -35,6 +35,11 @@ export class AppConstants {
   static readonly ROUTE_KNOWLEDGE_LIST: string = 'pages/KnowledgeListPage';
   static readonly ROUTE_KNOWLEDGE_DETAIL: string = 'pages/KnowledgeDetailPage';
 
+  // 闯关模式相关路由
+  static readonly ROUTE_GAME_MODE: string = 'pages/GameModePage';
+  static readonly ROUTE_GAME_LEVEL: string = 'pages/GameLevelPage';
+  static readonly ROUTE_GAME_RESULT: string = 'pages/GameResultPage';
+
   // 科目ID
   static readonly SUBJECT_BASIC: string = '001';           // 基础知识
   static readonly SUBJECT_CONCRETE: string = '002';        // 混凝土工程

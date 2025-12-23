@@ -263,6 +263,19 @@ class QuestionService {
   }
 
   /**
+   * 获取随机题目
+   * @param subjectId 科目ID
+   * @param count 题目数量
+   */
+  async getRandomQuestions(subjectId: string, count: number): Promise<Question[]> {
+    return await this.getQuestions({
+      subjectId: subjectId,
+      limit: count,
+      random: true
+    });
+  }
+
+  /**
    * 解析题目数据
    */
   private parseQuestion(resultSet: relationalStore.ResultSet): Question {

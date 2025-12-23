@@ -13,6 +13,7 @@ import { widgetDataService } from '../services/WidgetDataService';
 import { initializationState } from '../common/utils/InitializationState';
 import { achievementService } from '../services/AchievementService';
 import { onboardingService } from '../services/OnboardingService';
+import { gameService } from '../services/GameService';
 
 const DOMAIN: number = 0x0000;
 const TAG: string = 'HydroQuiz';
@@ -64,6 +65,10 @@ export default class EntryAbility extends UIAbility {
       // 初始化新手导引服务
       await onboardingService.init(this.context);
       hilog.info(DOMAIN, TAG, 'Onboarding service initialized');
+
+      // 初始化闯关服务
+      await gameService.init(this.context);
+      hilog.info(DOMAIN, TAG, 'Game service initialized');
 
       // 同步当前数据到卡片 Preferences
       await this.syncWidgetData();

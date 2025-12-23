@@ -4,21 +4,299 @@
 
 ## 目录
 
-1. [拖动删除效果](#1-拖动删除效果)
-2. [动画效果](#2-动画效果)
-3. [语音转文字 (ASR)](#3-语音转文字-asr)
-4. [文字转语音 (TTS)](#4-文字转语音-tts)
-5. [图片转文字 (OCR)](#5-图片转文字-ocr)
-6. [文档扫描 (DocumentScanner)](#6-文档扫描-documentscanner)
-7. [Form Kit 卡片开发](#7-form-kit-卡片开发)
-8. [ArkWeb 网页组件](#8-arkweb-网页组件)
-9. [ECharts 图表集成](#9-echarts-图表集成)
-10. [ArkTS 常见错误与解决方案](#10-arkts-常见错误与解决方案)
-11. [高德地图 SDK 开发](#11-高德地图-sdk-开发)
+1. [ArkUI 组件使用](#1-arkui-组件使用)
+2. [系统 API 和 Kit](#2-系统-api-和-kit)
+3. [拖动删除效果](#3-拖动删除效果)
+4. [动画效果](#4-动画效果)
+5. [语音转文字 (ASR)](#5-语音转文字-asr)
+6. [文字转语音 (TTS)](#6-文字转语音-tts)
+7. [图片转文字 (OCR)](#7-图片转文字-ocr)
+8. [文档扫描 (DocumentScanner)](#8-文档扫描-documentscanner)
+9. [Form Kit 卡片开发](#9-form-kit-卡片开发)
+10. [ArkWeb 网页组件](#10-arkweb-网页组件)
+11. [ECharts 图表集成](#11-echarts-图表集成)
+12. [MPChart 原生图表](#12-mpchart-原生图表)
+13. [数据持久化方案](#13-数据持久化方案)
+14. [主题管理实现](#14-主题管理实现)
+15. [核心算法实现](#15-核心算法实现)
+16. [ArkTS 常见错误与解决方案](#16-arkts-常见错误与解决方案)
+17. [高德地图 SDK 开发](#17-高德地图-sdk-开发)
+18. [华为原生地图 (Map Kit) 开发](#18-华为原生地图-map-kit-开发)
+19. [系统提醒通知 (Reminder Agent)](#19-系统提醒通知-reminder-agent)
+20. [蓝牙 BLE 开发](#20-蓝牙-ble-开发)
 
 ---
 
-## 1. 拖动删除效果
+## 1. ArkUI 组件使用
+
+### 1.1 布局容器
+
+```typescript
+// Column - 垂直布局
+Column() {
+  Text('标题')
+  Text('内容')
+}
+.width('100%')
+.padding(16)
+.alignItems(HorizontalAlign.Start)  // 子元素左对齐
+
+// Row - 水平布局
+Row() {
+  Text('左')
+  Blank()  // 弹性空白，撑开两端
+  Text('右')
+}
+.width('100%')
+.justifyContent(FlexAlign.SpaceBetween)
+
+// Stack - 层叠布局（用于遮罩、角标）
+Stack() {
+  Image($r('app.media.avatar'))
+  Circle().fill('#ef4444').position({ x: 28, y: 28 })  // 红点角标
+}
+
+// Scroll - 滚动容器
+Scroll() {
+  Column() { /* 长内容 */ }
+}
+.scrollable(ScrollDirection.Vertical)
+.scrollBar(BarState.Off)
+
+// Flex - 弹性布局（标签换行）
+Flex({ wrap: FlexWrap.Wrap }) {
+  ForEach(this.tags, (tag: string) => {
+    Text(tag).margin(4)
+  })
+}
+```
+
+### 1.2 基础组件速查表
+
+| 组件 | 用途 | 使用场景 |
+|------|------|----------|
+| `Column` | 垂直布局容器 | 页面主体结构、卡片内容排列 |
+| `Row` | 水平布局容器 | 工具栏、按钮组、标签行 |
+| `Stack` | 层叠布局容器 | 侧边栏覆盖、弹窗遮罩、FAB按钮定位 |
+| `Flex` | 弹性布局容器 | 标签换行显示（FlexWrap.Wrap） |
+| `Scroll` | 滚动容器 | 长内容页面、分类标签横向滚动 |
+| `Text` | 文本显示 | 标题、内容、标签、按钮文字 |
+| `Image` | 图片显示 | 图标（SVG）、头像、装饰图 |
+| `Divider` | 分割线 | 列表分隔、区域分隔 |
+| `Blank` | 空白占位 | 弹性布局中的空白填充 |
+| `LoadingProgress` | 加载指示器 | 数据加载中状态 |
+| `Button` | 按钮 | 提交、确认、操作按钮 |
+| `TextInput` | 文本输入框 | 搜索框、笔记输入、填空题答案 |
+| `Toggle` | 开关 | 设置页面的开关选项 |
+
+### 1.3 列表渲染
+
+```typescript
+// ForEach 遍历数组
+ForEach(this.dataList, (item: DataType, index: number) => {
+  this.ItemBuilder(item)
+}, (item: DataType) => item.id.toString())  // 第三个参数是 key 生成函数
+```
+
+### 1.4 @Builder 复用 UI 片段
+
+```typescript
+@Component
+struct MyPage {
+  // 定义 Builder
+  @Builder
+  CardItem(icon: string, title: string, color: string) {
+    Row() {
+      Text(icon).fontSize(20)
+        .width(40).height(40)
+        .backgroundColor(color + '20')
+        .borderRadius(20)
+        .textAlign(TextAlign.Center)
+      Text(title).fontSize(14).margin({ left: 12 })
+    }
+    .padding(12)
+    .backgroundColor($r('app.color.surface'))
+    .borderRadius(12)
+  }
+
+  build() {
+    Column() {
+      // 调用 Builder（注意用 this.）
+      this.CardItem('🐟', '喂食提醒', '#36e27b')
+      this.CardItem('💧', '换水提醒', '#3b82f6')
+    }
+  }
+}
+```
+
+### 1.5 Tabs 底部导航
+
+```typescript
+@Entry
+@Component
+struct Index {
+  @State currentIndex: number = 0
+
+  @Builder
+  TabBarItem(title: string, icon: Resource, index: number) {
+    Column() {
+      Image(icon).width(24).height(24)
+        .fillColor(this.currentIndex === index ? $r('app.color.primary') : $r('app.color.text_secondary'))
+      Text(title).fontSize(10)
+        .fontColor(this.currentIndex === index ? $r('app.color.primary') : $r('app.color.text_secondary'))
+    }
+  }
+
+  build() {
+    Tabs({ barPosition: BarPosition.End, index: this.currentIndex }) {
+      TabContent() { HomePage() }
+        .tabBar(this.TabBarItem('首页', $r('app.media.ic_home'), 0))
+      TabContent() { ProfilePage() }
+        .tabBar(this.TabBarItem('我的', $r('app.media.ic_person'), 1))
+    }
+    .barHeight(60)
+    .scrollable(false)
+    .onChange((index: number) => { this.currentIndex = index })
+  }
+}
+```
+
+### 1.6 高级组件
+
+| 组件 | 用途 | 使用场景 |
+|------|------|----------|
+| `ForEach` | 列表渲染 | 题目列表、选项列表、分类列表 |
+| `@Builder` | 自定义构建函数 | 复用UI片段（卡片、弹窗、菜单） |
+| `bindMenu` | 绑定菜单 | 排序选项菜单 |
+
+---
+
+## 2. 系统 API 和 Kit
+
+### 2.1 路由导航
+
+```typescript
+import router from '@ohos.router'
+
+// 页面跳转
+router.pushUrl({ url: 'pages/QuestionDetail', params: { bankId: 'jd' } })
+
+// 获取路由参数
+const params = router.getParams() as RouterParams
+
+// 返回上一页
+router.back()
+```
+
+### 2.2 弹窗提示
+
+```typescript
+import promptAction from '@ohos.promptAction'
+
+// Toast 提示
+promptAction.showToast({ message: '已收藏' })
+
+// 确认对话框
+promptAction.showDialog({
+  title: '确认删除',
+  message: '确定要删除吗？',
+  buttons: [{ text: '取消' }, { text: '确定' }]
+}).then((result) => {
+  if (result.index === 1) { /* 执行删除 */ }
+})
+```
+
+### 2.3 窗口管理
+
+```typescript
+import { window } from '@kit.ArkUI'
+
+// 获取状态栏高度（适配刘海屏）
+const windowClass = window.getLastWindow(getContext(this))
+windowClass.then((win: window.Window): void => {
+  const avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM)
+  this.statusBarHeight = px2vp(avoidArea.topRect.height)
+})
+```
+
+### 2.4 剪贴板
+
+```typescript
+import pasteboard from '@ohos.pasteboard'
+
+// 复制文本到剪贴板
+const pasteboardData = pasteboard.createData(pasteboard.MIMETYPE_TEXT_PLAIN, text)
+const systemPasteboard = pasteboard.getSystemPasteboard()
+systemPasteboard.setData(pasteboardData)
+```
+
+### 2.5 系统分享
+
+```typescript
+import { systemShare } from '@kit.ShareKit'
+import { uniformTypeDescriptor as utd } from '@kit.ArkData'
+
+// 分享文本
+const shareData = new systemShare.SharedData({
+  utd: utd.UniformDataType.TEXT,
+  content: shareContent,
+  title: '分享标题'
+})
+const controller = new systemShare.ShareController(shareData)
+await controller.show(context, { previewMode: systemShare.SharePreviewMode.DETAIL })
+
+// 分享图片
+const shareData = new systemShare.SharedData({
+  utd: utd.UniformDataType.IMAGE,
+  uri: imageUri
+})
+```
+
+### 2.6 组件截图
+
+```typescript
+import { componentSnapshot } from '@kit.ArkUI'
+import { image } from '@kit.ImageKit'
+
+// 截取组件为图片
+componentSnapshot.get('componentId', (error: Error, pixelMap: image.PixelMap) => {
+  // 处理截图结果
+})
+
+// 图片编码保存
+const imagePackerApi = image.createImagePacker()
+const arrayBuffer = await imagePackerApi.packing(pixelMap, { format: 'image/png', quality: 100 })
+```
+
+### 2.7 文件操作
+
+```typescript
+import fs from '@ohos.file.fs'
+import fileUri from '@ohos.file.fileuri'
+
+// 写入文件
+const file = fs.openSync(filePath, fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY)
+fs.writeSync(file.fd, arrayBuffer)
+fs.closeSync(file)
+
+// 获取文件 URI
+const uri = fileUri.getUriFromPath(filePath)
+```
+
+### 2.8 主题适配
+
+```typescript
+import { ConfigurationConstant } from '@kit.AbilityKit'
+
+// 监听系统深色模式变化
+updateSystemColorMode(colorMode: ConfigurationConstant.ColorMode): void {
+  this.systemIsDark = colorMode === ConfigurationConstant.ColorMode.COLOR_MODE_DARK
+}
+```
+
+---
+
+## 3. 拖动删除效果
 
 ### 核心原理
 通过 `GestureGroup` 组合长按手势和拖拽手势，实现"长按激活 → 拖拽移动 → 松手删除"的交互流程。
@@ -119,9 +397,9 @@ DeleteZone() {
 
 ---
 
-## 2. 动画效果
+## 4. 动画效果
 
-### 2.1 入场动画（列表项依次出现）
+### 4.1 入场动画（列表项依次出现）
 
 ```typescript
 // 动画常量
@@ -161,7 +439,7 @@ private triggerEntryAnimation(): void {
 }
 ```
 
-### 2.2 飞走动画（两阶段动画）
+### 4.2 飞走动画（两阶段动画）
 
 ```typescript
 /**
@@ -214,7 +492,7 @@ private async flyAwayAndRemove(questionId: string): Promise<void> {
 }
 ```
 
-### 2.3 删除缩放动画
+### 4.3 删除缩放动画
 
 ```typescript
 private async deleteItemWithAnimation(item: WrongQuestionItem): Promise<void> {
@@ -235,7 +513,7 @@ private async deleteItemWithAnimation(item: WrongQuestionItem): Promise<void> {
 }
 ```
 
-### 2.4 进度条渐变动画
+### 4.4 进度条渐变动画
 
 ```typescript
 // 进度条背景
@@ -256,6 +534,84 @@ Row()
   .borderRadius(3)
 ```
 
+### 4.5 animateTo 显式动画
+
+```typescript
+// 启动页 Logo 动画
+@State logoScale: number = 0.6
+@State logoOpacity: number = 0
+@State logoOffsetY: number = 80
+
+startAnimation() {
+  animateTo({
+    duration: 1800,
+    curve: Curve.EaseOut,
+    onFinish: () => { console.info('动画完成') }
+  }, () => {
+    this.logoScale = 1
+    this.logoOpacity = 1
+    this.logoOffsetY = 0
+  })
+}
+
+// UI 中绑定状态
+Image($r('app.media.logo'))
+  .scale({ x: this.logoScale, y: this.logoScale })
+  .opacity(this.logoOpacity)
+  .translate({ y: this.logoOffsetY })
+```
+
+### 4.6 弹簧动画 (springMotion)
+
+```typescript
+import { curves } from '@kit.ArkUI'
+
+// Tab 点击弹跳效果
+@State tabOffsets: number[] = [0, 0, 0, 0]
+
+Column()
+  .translate({ y: this.tabOffsets[index] })
+  .animation({ curve: curves.springMotion(0.35, 0.7) })  // (响应速度, 阻尼)
+  .onClick(() => {
+    this.tabOffsets[index] = -8   // 向上弹
+    setTimeout(() => {
+      this.tabOffsets[index] = 0  // 回弹
+    }, 100)
+  })
+```
+
+### 4.7 通知面板展开动画 (一镜到底)
+
+```typescript
+@State showPanel: boolean = false
+@State panelProgress: number = 0  // 0-1 控制动画进度
+
+togglePanel() {
+  if (this.showPanel) {
+    // 关闭
+    this.getUIContext()?.animateTo({
+      duration: 300,
+      curve: curves.cubicBezierCurve(0.2, 0, 0, 1)
+    }, () => { this.panelProgress = 0 })
+    setTimeout(() => { this.showPanel = false }, 300)
+  } else {
+    // 打开
+    this.showPanel = true
+    this.getUIContext()?.animateTo({
+      duration: 350,
+      curve: curves.springMotion(0.5, 0.8)
+    }, () => { this.panelProgress = 1 })
+  }
+}
+
+// UI：用 progress 控制尺寸和透明度
+Column()
+  .width(40 + (this.panelProgress * 280))      // 40px -> 320px
+  .height(40 + (this.panelProgress * 280))
+  .borderRadius(20 - (this.panelProgress * 8)) // 20px -> 12px
+  .opacity(this.panelProgress)
+```
+
 ### 动画常用曲线
 | 曲线 | 效果 | 适用场景 |
 |------|------|----------|
@@ -266,7 +622,7 @@ Row()
 
 ---
 
-## 3. 语音转文字 (ASR)
+## 5. 语音转文字 (ASR)
 
 ### 核心 Kit
 ```typescript
@@ -450,7 +806,7 @@ private async startVoiceInput(): Promise<void> {
 
 ---
 
-## 4. 文字转语音 (TTS)
+## 6. 文字转语音 (TTS)
 
 ### 核心 Kit
 ```typescript
@@ -646,7 +1002,7 @@ private async handleTTSButtonClick(): Promise<void> {
 
 ---
 
-## 5. 图片转文字 (OCR)
+## 7. 图片转文字 (OCR)
 
 ### 核心 Kit
 ```typescript
@@ -804,7 +1160,7 @@ private async startOcrRecognition(): Promise<void> {
 
 ---
 
-## 6. 文档扫描 (DocumentScanner)
+## 8. 文档扫描 (DocumentScanner)
 
 ### 核心 Kit
 ```typescript
@@ -1021,14 +1377,14 @@ export struct DocDemoPage {
 
 ---
 
-## 7. Form Kit 卡片开发
+## 9. Form Kit 卡片开发
 
 ### 核心 Kit
 ```typescript
 import { formBindingData, FormExtensionAbility, formInfo, formProvider } from '@kit.FormKit';
 ```
 
-### 6.1 卡片扩展能力 (EntryFormAbility)
+### 9.1 卡片扩展能力 (EntryFormAbility)
 
 ```typescript
 export default class EntryFormAbility extends FormExtensionAbility {
@@ -1142,7 +1498,7 @@ export default class EntryFormAbility extends FormExtensionAbility {
 }
 ```
 
-### 6.2 卡片 UI 页面
+### 9.2 卡片 UI 页面
 
 ```typescript
 // StudyProgressCard.ets
@@ -1257,7 +1613,7 @@ struct StudyProgressCard {
 }
 ```
 
-### 6.3 App 端数据同步服务
+### 9.3 App 端数据同步服务
 
 ```typescript
 // WidgetDataService.ets
@@ -1318,7 +1674,7 @@ class WidgetDataService {
 export const widgetDataService = new WidgetDataService();
 ```
 
-### 6.4 卡片配置 (form_config.json)
+### 9.4 卡片配置 (form_config.json)
 
 ```json
 {
@@ -1360,53 +1716,14 @@ export const widgetDataService = new WidgetDataService();
 
 ---
 
-## 快速参考表
-
-| 功能 | Kit | 核心 API |
-|------|-----|----------|
-| 语音转文字 | CoreSpeechKit | `speechRecognizer.createEngine()` |
-| 文字转语音 | CoreSpeechKit | `textToSpeech.createEngine()` |
-| 图片转文字 | CoreVisionKit | `textRecognition.recognizeText()` |
-| 卡片开发 | FormKit | `FormExtensionAbility` |
-| 图片选择 | MediaLibraryKit | `PhotoViewPicker` |
-| 数据存储 | ArkData | `preferences` |
-| 动画 | ArkUI | `animateTo()`, `transition()` |
-| 手势 | ArkUI | `GestureGroup`, `PanGesture` |
-| 网页组件 | ArkWeb | `Web`, `webview.WebviewController` |
-| 图表 | ECharts (JS) | `echarts.init()`, `setOption()` |
-
----
-
-## 常见问题
-
-### Q1: 语音识别没有声音？
-检查麦克风权限是否已授权，使用 `abilityAccessCtrl.checkAccessTokenSync()` 检查。
-
-### Q2: TTS 朗读失败？
-确保文本长度不超过 10000 字，且已过滤特殊符号。
-
-### Q3: 卡片数据不更新？
-检查 formId 是否正确保存，使用 `formProvider.updateForm()` 主动推送更新。
-
-### Q4: 拖拽动画不流畅？
-使用 `@Observed` + `@ObjectLink` 追踪单项状态，避免整个列表重渲染。
-
----
-
-> 文档版本: 1.0  
-> 更新日期: 2025-12-20
-
-
----
-
-## 8. ArkWeb 网页组件
+## 10. ArkWeb 网页组件
 
 ### 核心 Kit
 ```typescript
 import { webview } from '@kit.ArkWeb';
 ```
 
-### 7.1 基础使用
+### 10.1 基础使用
 
 ```typescript
 @Entry
@@ -1446,7 +1763,7 @@ struct WebPage {
 }
 ```
 
-### 7.2 ArkTS 调用 JavaScript
+### 10.2 ArkTS 调用 JavaScript
 
 ```typescript
 // 方式1：直接执行 JS 代码
@@ -1476,7 +1793,7 @@ private async getWebData(): Promise<string> {
 }
 ```
 
-### 7.3 JavaScript 调用 ArkTS
+### 10.3 JavaScript 调用 ArkTS
 
 ```typescript
 // ArkTS 端注册方法
@@ -1500,7 +1817,7 @@ aboutToAppear(): void {
 // </script>
 ```
 
-### 7.4 加载不同来源的内容
+### 10.4 加载不同来源的内容
 
 ```typescript
 // 1. 加载本地 rawfile 资源
@@ -1518,7 +1835,7 @@ this.webController.loadData(
 );
 ```
 
-### 7.5 常用配置属性
+### 10.5 常用配置属性
 
 ```typescript
 Web({ src: $rawfile('index.html'), controller: this.webController })
@@ -1536,9 +1853,9 @@ Web({ src: $rawfile('index.html'), controller: this.webController })
 
 ---
 
-## 9. ECharts 图表集成
+## 11. ECharts 图表集成
 
-### 9.1 项目结构
+### 11.1 项目结构
 
 ```
 entry/src/main/resources/rawfile/
@@ -1546,7 +1863,7 @@ entry/src/main/resources/rawfile/
 └── study_report.html   # 图表页面
 ```
 
-### 8.2 HTML 模板结构
+### 11.2 HTML 模板结构
 
 ```html
 <!DOCTYPE html>
@@ -1593,7 +1910,7 @@ entry/src/main/resources/rawfile/
 </html>
 ```
 
-### 8.3 柱状图实现
+### 11.3 柱状图实现
 
 ```javascript
 function initTrendChart(weekTrend) {
@@ -1643,7 +1960,7 @@ function initTrendChart(weekTrend) {
 }
 ```
 
-### 8.4 饼图/环形图实现
+### 11.4 饼图/环形图实现
 
 ```javascript
 function initPieChart(subjectData) {
@@ -1698,7 +2015,7 @@ function initPieChart(subjectData) {
 }
 ```
 
-### 8.5 响应式处理
+### 11.5 响应式处理
 
 ```javascript
 // 监听窗口大小变化，自动调整图表
@@ -1708,7 +2025,7 @@ window.addEventListener('resize', function() {
 });
 ```
 
-### 8.6 ArkTS 端完整示例
+### 11.6 ArkTS 端完整示例
 
 ```typescript
 import { webview } from '@kit.ArkWeb';
@@ -1781,7 +2098,7 @@ struct StudyReportPage {
 }
 ```
 
-### 8.7 常用图表类型速查
+### 11.7 常用图表类型速查
 
 | 图表类型 | type 值 | 适用场景 |
 |----------|---------|----------|
@@ -1794,11 +2111,514 @@ struct StudyReportPage {
 
 ---
 
-## 10. ArkTS 常见错误与解决方案
+## 12. MPChart 原生图表
+
+> MPChart 是 HarmonyOS 原生图表库，无需 WebView，性能更优。
+
+### 安装
+
+```bash
+ohpm install @ohos/mpchart
+```
+
+### 12.1 折线图完整实现
+
+```typescript
+import {
+  LineChart, LineChartModel, LineDataSet, LineData,
+  EntryOhos, JArrayList, Mode, AxisDependency,
+  XAxis, XAxisPosition, IAxisValueFormatter, AxisBase,
+  ChartColorStop
+} from '@ohos/mpchart'
+
+@Component
+struct LineChartDemo {
+  // 1. 创建模型
+  private model: LineChartModel = new LineChartModel()
+
+  aboutToAppear() {
+    this.initChart()
+  }
+
+  private initChart() {
+    // 2. 配置 X 轴
+    const xAxis = this.model.getXAxis()
+    xAxis.setPosition(XAxisPosition.BOTTOM)
+    xAxis.setDrawGridLines(false)
+    xAxis.setTextColor(0x99FFFFFF)
+    xAxis.setValueFormatter(new MyXAxisFormatter(this.labels))
+
+    // 3. 配置 Y 轴
+    const leftAxis = this.model.getAxisLeft()
+    leftAxis.setAxisMinimum(0)
+    leftAxis.setAxisMaximum(100)
+    leftAxis.setLabelCount(5, true)
+    leftAxis.setGridColor(0x20FFFFFF)
+
+    // 隐藏右侧 Y 轴
+    this.model.getAxisRight().setEnabled(false)
+
+    // 4. 构建数据
+    const values = new JArrayList<EntryOhos>()
+    for (let i = 0; i < this.data.length; i++) {
+      values.add(new EntryOhos(i, this.data[i].value))
+    }
+
+    // 5. 创建数据集
+    const dataSet = new LineDataSet(values, '温度')
+    dataSet.setMode(Mode.CUBIC_BEZIER)       // 平滑曲线
+    dataSet.setColorByColor(0xFF36e27b)      // 线条颜色
+    dataSet.setLineWidth(3)
+    dataSet.setDrawCircles(false)            // 不画数据点
+    dataSet.setDrawFilled(true)              // 填充区域
+    dataSet.setAxisDependency(AxisDependency.LEFT)
+
+    // 6. 渐变填充
+    const gradient = new JArrayList<ChartColorStop>()
+    gradient.add(['#0036e27b', 0.0])  // 底部透明
+    gradient.add(['#8036e27b', 1.0])  // 顶部半透明
+    dataSet.setGradientFillColor(gradient)
+
+    // 7. 设置数据并刷新
+    const dataSets = new JArrayList<ILineDataSet>()
+    dataSets.add(dataSet)
+    this.model.setData(new LineData(dataSets))
+    this.model.invalidate()
+  }
+
+  build() {
+    // 8. 渲染
+    LineChart({ model: this.model })
+      .width('100%')
+      .height(200)
+  }
+}
+```
+
+### 12.2 自定义轴标签格式化器
+
+```typescript
+class TempAxisFormatter implements IAxisValueFormatter {
+  getFormattedValue(value: number, axis: AxisBase): string {
+    const temp = 20 + (value / 100) * 15  // 归一化值转回温度
+    return `${temp.toFixed(0)}°`
+  }
+}
+
+class DateAxisFormatter implements IAxisValueFormatter {
+  private labels: string[]
+  
+  constructor(labels: string[]) {
+    this.labels = labels
+  }
+  
+  getFormattedValue(value: number, axis: AxisBase): string {
+    const index = Math.floor(value)
+    if (index >= 0 && index < this.labels.length) {
+      return this.labels[index]
+    }
+    return ''
+  }
+}
+```
+
+### 12.3 MPChart 常见问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 图表不显示 | 没调用 invalidate() | 数据更新后调用 `model.invalidate()` |
+| 数据点不显示 | setDrawCircles(false) | 设置为 true 或调整圆点大小 |
+| 渐变不生效 | 没设置 setDrawFilled(true) | 先启用填充再设置渐变 |
+
+---
+
+## 13. 数据持久化方案
+
+### 13.1 架构设计
+
+采用**单例模式 + Preferences 存储**的方案：
+
+```
+┌─────────────────────────────────────────────────────┐
+│                    UI 层 (Pages)                     │
+├─────────────────────────────────────────────────────┤
+│              数据管理层 (Manager 单例)                │
+│  ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ │
+│  │StudyStatsData│ │WrongBookData │ │FavoritesData │ │
+│  └──────────────┘ └──────────────┘ └──────────────┘ │
+├─────────────────────────────────────────────────────┤
+│              存储层 (Preferences)                    │
+│         JSON 序列化 / 反序列化                        │
+└─────────────────────────────────────────────────────┘
+```
+
+### 13.2 Preferences 存储
+
+```typescript
+import { preferences } from '@kit.ArkData'
+
+class DataStore {
+  private dataStore: preferences.Preferences | null = null
+
+  // 初始化
+  async init(context: Context): Promise<void> {
+    this.dataStore = await preferences.getPreferences(context, 'store_name')
+  }
+
+  // 读取
+  async load<T>(key: string, defaultValue: T): Promise<T> {
+    const json = await this.dataStore?.get(key, '') as string
+    if (json) {
+      return JSON.parse(json) as T
+    }
+    return defaultValue
+  }
+
+  // 写入
+  async save(key: string, data: object): Promise<void> {
+    await this.dataStore?.put(key, JSON.stringify(data))
+    await this.dataStore?.flush()  // 必须调用！
+  }
+}
+```
+
+### 13.3 数据管理器示例
+
+| 管理器 | 存储键 | 数据内容 |
+|--------|--------|----------|
+| `StudyStatsManager` | `study_stats` | 学习时长、做题数、正确率、周数据 |
+| `WrongBookManager` | `wrong_book` | 错题记录、掌握度、练习次数 |
+| `FavoritesManager` | `favorites` | 收藏的题目和文章 |
+| `AquariumManager` | `aquarium_data` | 鱼缸数据、鱼种信息、水质记录 |
+
+### 13.4 监听器模式
+
+```typescript
+class DataStore<T> {
+  private data: T
+  private listeners: ((data: T) => void)[] = []
+  
+  addListener(fn: (data: T) => void): void { 
+    this.listeners.push(fn) 
+  }
+  
+  removeListener(fn: (data: T) => void): void { 
+    this.listeners = this.listeners.filter(l => l !== fn) 
+  }
+  
+  private notify(): void {
+    this.listeners.forEach(fn => fn(this.data))
+  }
+  
+  async update(data: T): Promise<void> {
+    this.data = data
+    await this.save()
+    this.notify()  // 通知 UI 刷新
+  }
+}
+
+// 页面中使用
+aboutToAppear(): void {
+  studyStatsManager.addListener((stats: StudyStats): void => {
+    this.updateUI()
+  })
+}
+```
+
+---
+
+## 14. 主题管理实现
+
+### 14.1 主题数据结构
+
+```typescript
+export interface ThemeData {
+  primary: string       // 主色
+  bgPrimary: string     // 主背景色
+  bgSecondary: string   // 次背景色
+  bgCard: string        // 卡片背景色
+  textPrimary: string   // 主文字颜色
+  textSecondary: string // 次文字颜色
+  textTertiary: string  // 三级文字颜色
+  borderColor: string   // 边框颜色
+  borderLight: string   // 浅边框颜色
+}
+
+// 浅色主题
+const lightTheme: ThemeData = {
+  primary: '#36e27b',
+  bgPrimary: '#f6f8f7',
+  bgSecondary: '#ffffff',
+  bgCard: '#ffffff',
+  textPrimary: '#111714',
+  textSecondary: '#6b7280',
+  textTertiary: '#9ca3af',
+  borderColor: '#e5e7eb',
+  borderLight: '#f3f4f6'
+}
+
+// 深色主题
+const darkTheme: ThemeData = {
+  primary: '#36e27b',
+  bgPrimary: '#112117',
+  bgSecondary: '#1C2E24',
+  bgCard: '#1C2E24',
+  textPrimary: '#ffffff',
+  textSecondary: '#9eb7a8',
+  textTertiary: '#6b7280',
+  borderColor: '#2d3d35',
+  borderLight: '#1a2e22'
+}
+```
+
+### 14.2 主题切换机制
+
+```typescript
+type ThemeMode = 'light' | 'dark' | 'system'
+type ThemeChangeCallback = (mode: ThemeMode, data: ThemeData) => void
+
+class ThemeManager {
+  private currentMode: ThemeMode = 'system'
+  private systemIsDark: boolean = false
+  private callbacks: ThemeChangeCallback[] = []
+
+  // 获取当前主题数据
+  getThemeData(): ThemeData {
+    return this.isDark() ? darkTheme : lightTheme
+  }
+
+  // 判断当前是否深色
+  isDark(): boolean {
+    if (this.currentMode === 'system') {
+      return this.systemIsDark
+    }
+    return this.currentMode === 'dark'
+  }
+
+  // 监听主题变化
+  onThemeChange(callback: ThemeChangeCallback): void {
+    this.callbacks.push(callback)
+  }
+
+  // 切换主题
+  toggleTheme(): void {
+    const newMode = this.isDark() ? 'light' : 'dark'
+    this.setTheme(newMode)
+  }
+
+  // 设置主题
+  setTheme(mode: ThemeMode): void {
+    this.currentMode = mode
+    this.notifyCallbacks()
+  }
+
+  // 更新系统主题状态
+  updateSystemTheme(isDark: boolean): void {
+    this.systemIsDark = isDark
+    if (this.currentMode === 'system') {
+      this.notifyCallbacks()
+    }
+  }
+
+  private notifyCallbacks(): void {
+    const data = this.getThemeData()
+    this.callbacks.forEach(cb => cb(this.currentMode, data))
+  }
+}
+
+export const themeManager = new ThemeManager()
+```
+
+### 14.3 页面中使用
+
+```typescript
+@State theme: ThemeData = themeManager.getThemeData()
+@State isDark: boolean = themeManager.isDark()
+
+aboutToAppear(): void {
+  themeManager.onThemeChange((_, data: ThemeData): void => {
+    this.theme = data
+    this.isDark = themeManager.isDark()
+  })
+}
+
+// 在 UI 中使用
+Text('标题').fontColor(this.theme.textPrimary)
+Column().backgroundColor(this.theme.bgCard)
+```
+
+---
+
+## 15. 核心算法实现
+
+### 15.1 稳定性评分算法
+
+**评分维度：** 水质(40%) + 兼容性(25%) + 密度(15%) + 数据完整性(10%) + 维护(10%)
+
+```typescript
+interface StabilityScore {
+  total: number           // 总分 0-100
+  waterQuality: number    // 水质得分
+  compatibility: number   // 兼容性得分
+  density: number         // 密度得分
+  dataCompleteness: number // 数据完整性
+  maintenance: number     // 维护得分
+}
+
+// 计算鱼种温度/pH交集
+function calculateParameterRange(fishSpecies: FishSpecies[]): ParameterRange {
+  let tempMin = 0, tempMax = 50
+  let phMin = 0, phMax = 14
+  
+  for (const fish of fishSpecies) {
+    const tempRange = parseRange(fish.temperatureRange)  // "22-28°C" -> {min:22, max:28}
+    tempMin = Math.max(tempMin, tempRange.min)
+    tempMax = Math.min(tempMax, tempRange.max)
+    
+    const phRange = parseRange(fish.phRange)
+    phMin = Math.max(phMin, phRange.min)
+    phMax = Math.min(phMax, phRange.max)
+  }
+  
+  return { tempMin, tempMax, phMin, phMax }
+}
+
+// 根据偏离程度评分
+function scoreParameter(current: number, min: number, max: number, maxScore: number): number {
+  if (current >= min && current <= max) {
+    return maxScore  // 在范围内，满分
+  }
+  
+  const diff = current < min ? min - current : current - max
+  if (diff <= 2) return maxScore * 0.7   // 轻微偏离
+  if (diff <= 4) return maxScore * 0.4   // 明显偏离
+  return maxScore * 0.15                  // 严重偏离
+}
+```
+
+### 15.2 任务触发判断
+
+```typescript
+interface FrequencyRule {
+  type: 'daily' | 'interval' | 'weekly' | 'monthly'
+  startDate: string
+  interval?: number      // 间隔天数
+  weekDays?: number[]    // 周几 [0-6]
+  monthDay?: number      // 每月几号
+}
+
+function shouldTriggerOnDate(freq: FrequencyRule, dateStr: string): boolean {
+  const target = parseDate(dateStr)
+  const start = parseDate(freq.startDate)
+  const diffDays = Math.floor((target.getTime() - start.getTime()) / 86400000)
+  
+  if (diffDays < 0) return false
+  
+  switch (freq.type) {
+    case 'daily': 
+      return true
+    case 'interval': 
+      return diffDays % (freq.interval || 1) === 0
+    case 'weekly': 
+      return (freq.weekDays || []).includes(target.getDay())
+    case 'monthly': 
+      return target.getDate() === freq.monthDay
+    default:
+      return false
+  }
+}
+```
+
+### 15.3 混养兼容性检测
+
+```typescript
+type CompatibilityLevel = 'compatible' | 'caution' | 'incompatible' | 'unknown'
+
+interface CompatibilityResult {
+  level: CompatibilityLevel
+  score: number
+  issues: string[]
+}
+
+// 检查两鱼种兼容性
+function checkPairCompatibility(fish1: FishSpecies, fish2: FishSpecies): CompatibilityLevel {
+  // 明确不兼容
+  if (fish1.incompatibleWith?.includes(fish2.name)) return 'incompatible'
+  if (fish2.incompatibleWith?.includes(fish1.name)) return 'incompatible'
+  
+  // 需要注意
+  if (fish1.cautionWith?.includes(fish2.name)) return 'caution'
+  if (fish2.cautionWith?.includes(fish1.name)) return 'caution'
+  
+  // 明确兼容
+  if (fish1.compatibleWith?.includes(fish2.name)) return 'compatible'
+  if (fish2.compatibleWith?.includes(fish1.name)) return 'compatible'
+  
+  // 性格冲突检测
+  if (fish1.temperament === '好斗' && fish2.temperament === '温和') return 'caution'
+  if (fish2.temperament === '好斗' && fish1.temperament === '温和') return 'caution'
+  
+  return 'unknown'
+}
+
+// 总分计算
+function calculateCompatibilityScore(fishList: FishSpecies[], tankVolume: number): CompatibilityResult {
+  let score = 100
+  const issues: string[] = []
+  let incompatibleCount = 0
+  let cautionCount = 0
+  
+  // 检查所有鱼种配对
+  for (let i = 0; i < fishList.length; i++) {
+    for (let j = i + 1; j < fishList.length; j++) {
+      const level = checkPairCompatibility(fishList[i], fishList[j])
+      if (level === 'incompatible') {
+        incompatibleCount++
+        issues.push(`${fishList[i].name} 与 ${fishList[j].name} 不兼容`)
+      } else if (level === 'caution') {
+        cautionCount++
+        issues.push(`${fishList[i].name} 与 ${fishList[j].name} 需注意`)
+      }
+    }
+  }
+  
+  // 扣分
+  score -= incompatibleCount * 25
+  score -= cautionCount * 10
+  
+  // 密度检测
+  const totalLength = fishList.reduce((sum, f) => sum + (f.adultSize || 5), 0)
+  const densityRatio = totalLength / tankVolume  // cm/L
+  if (densityRatio > 2) {
+    score -= 30
+    issues.push('鱼缸密度过高')
+  } else if (densityRatio > 1.5) {
+    score -= 15
+    issues.push('鱼缸密度偏高')
+  }
+  
+  // 温度范围检测
+  const range = calculateParameterRange(fishList)
+  if (range.tempMin > range.tempMax) {
+    score -= 20
+    issues.push('温度需求不兼容')
+  }
+  
+  const level: CompatibilityLevel = 
+    score >= 80 ? 'compatible' :
+    score >= 60 ? 'caution' : 'incompatible'
+  
+  return { level, score: Math.max(0, score), issues }
+}
+```
+
+---
+
+## 16. ArkTS 常见错误与解决方案
 
 > 本节整理了 HarmonyOS ArkTS 开发中常见的编译错误及其解决方案，帮助快速定位和修复问题。
 
-### 9.1 arkts-limited-throw - throw 语句类型限制
+### 16.1 arkts-limited-throw - throw 语句类型限制
 
 **错误信息**: `"throw" statements cannot accept values of arbitrary types`
 
@@ -1816,7 +2636,7 @@ throw new Error(`Operation failed: ${(error as Error).message}`);
 
 ---
 
-### 9.2 arkts-no-utility-types - 不支持工具类型
+### 16.2 arkts-no-utility-types - 不支持工具类型
 
 **错误信息**: `Some of utility types are not supported`
 
@@ -1840,7 +2660,7 @@ async saveRecord(record: AnswerRecordInput): Promise<string>
 
 ---
 
-### 9.3 arkts-no-obj-literals-as-types - 对象字面量不能作为类型
+### 16.3 arkts-no-obj-literals-as-types - 对象字面量不能作为类型
 
 **错误信息**: `Object literals cannot be used as type declarations`
 
@@ -1864,7 +2684,7 @@ async saveExamRecord(record: ExamRecordInput): Promise<string>
 
 ---
 
-### 9.4 arkts-no-untyped-obj-literals - 对象字面量必须有类型
+### 16.4 arkts-no-untyped-obj-literals - 对象字面量必须有类型
 
 **错误信息**: `Object literal must correspond to some explicitly declared class or interface`
 
@@ -1889,7 +2709,7 @@ await service.saveRecord(recordInput);
 
 ---
 
-### 9.5 arkts-no-structural-typing - 不支持结构化类型
+### 16.5 arkts-no-structural-typing - 不支持结构化类型
 
 **错误信息**: `Structural typing is not supported`
 
@@ -1914,7 +2734,7 @@ import { TodayStatistics } from '../services/AnswerRecordService';
 
 ---
 
-### 9.6 @Builder 中不能使用变量声明
+### 16.6 @Builder 中不能使用变量声明
 
 **错误信息**: `Only UI component syntax can be written here`
 
@@ -1945,7 +2765,7 @@ WeekDayItem(label: string, dayIndex: number) {
 
 ---
 
-### 9.7 Resource Pack Error - 资源目录结构错误
+### 16.7 Resource Pack Error - 资源目录结构错误
 
 **错误信息**: `Failed to scan resources: invalid path '...', not a file`
 
@@ -1970,7 +2790,7 @@ planningDoc/              // 参考文件放这里
 
 ---
 
-### 9.8 文件结构损坏 - 孤立代码块
+### 16.8 文件结构损坏 - 孤立代码块
 
 **错误信息**: `';' expected`、`Cannot find name 'type'`
 
@@ -2004,7 +2824,7 @@ export function getQuestions(): Question[] {
 
 ---
 
-### 9.9 题目ID重复导致数据异常
+### 16.9 题目ID重复导致数据异常
 
 **问题现象**: 题库分类页面显示某些科目题目数量为0
 
@@ -2036,9 +2856,9 @@ grep -r "id: 'metal_001'" entry/src/main/ets/data/
 
 ---
 
-## 10. ArkTS 最佳实践
+## 16.10 ArkTS 最佳实践
 
-### 10.1 接口定义规范
+### 接口定义规范
 
 ```typescript
 // 输入参数接口
@@ -2058,7 +2878,7 @@ export interface TodayStatistics {
 }
 ```
 
-### 10.2 错误处理规范
+### 错误处理规范
 
 ```typescript
 try {
@@ -2069,7 +2889,7 @@ try {
 }
 ```
 
-### 10.3 对象创建规范
+### 对象创建规范
 
 ```typescript
 // ✅ 推荐写法
@@ -2084,7 +2904,7 @@ return result;
 return { total: 0, correct: 0, accuracy: 0 };
 ```
 
-### 10.4 大文件管理规范
+### 大文件管理规范
 
 ```typescript
 // ✅ 推荐：按模块拆分数据文件
@@ -2100,7 +2920,7 @@ questions.push(...getConcreteQuestions1(now));
 questions.push(...getConcreteQuestions2(now));
 ```
 
-### 10.5 ID命名规范
+### ID命名规范
 
 ```typescript
 // 推荐格式：{科目缩写}_{文件编号}_{序号}
@@ -2136,11 +2956,11 @@ questions.push(...getConcreteQuestions2(now));
 
 ---
 
-## 11. 高德地图 SDK 开发
+## 17. 高德地图 SDK 开发
 
 > 本节整理了 HarmonyOS 高德地图 SDK 的核心功能和使用方法，涵盖地图显示、标记、定位、搜索、路线规划等完整功能。
 
-### 9.1 SDK 模块与安装
+### 17.1 SDK 模块与安装
 
 #### 模块组成
 
@@ -2166,7 +2986,7 @@ questions.push(...getConcreteQuestions2(now));
 
 ---
 
-### 9.2 隐私政策与初始化（必须）
+### 17.2 隐私政策与初始化（必须）
 
 ```typescript
 import { MapsInitializer } from '@amap/amap_lbs_map3d';
@@ -2189,7 +3009,7 @@ private initAMapSDK(): void {
 
 ---
 
-### 9.3 显示地图
+### 17.3 显示地图
 
 ```typescript
 import { AMap, MapView, MapViewComponent, MapViewManager, MapViewCreateCallback, CameraUpdateFactory, LatLng } from '@amap/amap_lbs_map3d';
@@ -2235,7 +3055,7 @@ struct MapPage {
 
 ---
 
-### 9.4 地图类型与UI控件
+### 17.4 地图类型与UI控件
 
 ```typescript
 import { MapType, UiSettings } from '@amap/amap_lbs_map3d';
@@ -2256,7 +3076,7 @@ uiSettings.setRotateGesturesEnabled(true);    // 旋转手势
 
 ---
 
-### 9.5 地图标记 Marker
+### 17.5 地图标记 Marker
 
 ```typescript
 import { Marker, MarkerOptions, BitmapDescriptorFactory } from '@amap/amap_lbs_map3d';
@@ -2288,7 +3108,7 @@ aMap.setOnMarkerClickListener((marker: Marker): boolean => {
 
 ---
 
-### 9.6 定位蓝点
+### 17.6 定位蓝点
 
 ```typescript
 import { MyLocationStyle, OnLocationChangedListener } from '@amap/amap_lbs_map3d';
@@ -2328,7 +3148,7 @@ deactivate(): void {
 
 ---
 
-### 9.7 POI 搜索
+### 17.7 POI 搜索
 
 ```typescript
 import { PoiSearch, PoiQuery, PoiResult, PoiItem, OnPoiSearchListener, PoiSearchBound, LatLonPoint } from '@amap/amap_lbs_search';
@@ -2362,7 +3182,7 @@ poiSearch.searchPOIAsyn();
 
 ---
 
-### 9.8 地理编码与逆地理编码
+### 17.8 地理编码与逆地理编码
 
 ```typescript
 import { GeocodeSearch, GeocodeQuery, ReGeocodeQuery, LatLonPoint } from '@amap/amap_lbs_search';
@@ -2394,7 +3214,7 @@ geocodeSearch.getFromLocationAsyn(reGeoQuery);
 
 ---
 
-### 9.9 路线规划
+### 17.9 路线规划
 
 ```typescript
 import { RouteSearch, DriveRouteQuery, WalkRouteQuery, FromAndTo, LatLonPoint, DrivePath } from '@amap/amap_lbs_search';
@@ -2439,7 +3259,7 @@ routeSearch.calculateWalkRouteAsyn(walkQuery);
 
 ---
 
-### 9.10 绘图与测距
+### 17.10 绘图与测距
 
 ```typescript
 import { Polyline, PolylineOptions, Polygon, PolygonOptions, Circle, CircleOptions, AMapUtils } from '@amap/amap_lbs_map3d';
@@ -2474,7 +3294,7 @@ const area = AMapUtils.calculateArea(points);  // 多边形面积（平方米）
 
 ---
 
-### 9.11 地图事件监听
+### 17.11 地图事件监听
 
 ```typescript
 // 地图点击
@@ -2501,7 +3321,7 @@ aMap.addOnPOIClickListener((poi: Poi) => {
 
 ---
 
-### 9.12 权限配置
+### 17.12 权限配置
 
 ```json5
 // module.json5
@@ -2528,7 +3348,7 @@ aMap.addOnPOIClickListener((poi: Poi) => {
 
 ---
 
-### 9.13 高德地图 API 速查表
+### 17.13 高德地图 API 速查表
 
 | 功能 | 核心类 | 关键方法 |
 |------|--------|----------|
@@ -2554,11 +3374,11 @@ aMap.addOnPOIClickListener((poi: Poi) => {
 
 ---
 
-## 10. 华为原生地图 (Map Kit) 开发
+## 18. 华为原生地图 (Map Kit) 开发
 
 > 本节整理了 HarmonyOS 原生 Map Kit 的核心功能，无需第三方 SDK，直接使用系统能力实现地图功能。
 
-### 10.1 核心模块与导入
+### 18.1 核心模块与导入
 
 ```typescript
 // 地图核心模块
@@ -2581,7 +3401,7 @@ import { geoLocationManager } from '@kit.LocationKit';
 
 ---
 
-### 10.2 显示地图
+### 18.2 显示地图
 
 ```typescript
 import { map, mapCommon, MapComponent } from '@kit.MapKit';
@@ -2641,7 +3461,7 @@ struct BasicMap {
 
 ---
 
-### 10.3 地图类型与日夜模式
+### 18.3 地图类型与日夜模式
 
 ```typescript
 // 地图类型
@@ -2656,7 +3476,7 @@ this.mapController.setDayNightMode(mapCommon.DayNightMode.NIGHT);  // 夜间模�
 
 ---
 
-### 10.4 UI控件与手势控制
+### 18.4 UI控件与手势控制
 
 ```typescript
 // UI控件
@@ -2672,7 +3492,7 @@ this.mapController.setScrollGesturesEnabled(true);    // 滑动手势
 
 ---
 
-### 10.5 相机控制
+### 18.5 相机控制
 
 ```typescript
 // 移动到指定位置
@@ -2695,7 +3515,7 @@ console.log('倾斜角度:', cameraPosition.tilt);
 
 ---
 
-### 10.6 地图事件监听
+### 18.6 地图事件监听
 
 ```typescript
 const eventManager = this.mapController.getEventManager();
@@ -2730,7 +3550,7 @@ eventManager.on("markerClick", (marker: map.Marker) => {
 
 ---
 
-### 10.7 添加标记 Marker
+### 18.7 添加标记 Marker
 
 ```typescript
 // 添加标记
@@ -2754,7 +3574,7 @@ marker.remove();  // 移除标记
 
 ---
 
-### 10.8 绘制覆盖物
+### 18.8 绘制覆盖物
 
 ```typescript
 // 绘制折线
@@ -2798,7 +3618,7 @@ circle.remove();
 
 ---
 
-### 10.9 POI 搜索 (site)
+### 18.9 POI 搜索 (site)
 
 ```typescript
 import { site } from '@kit.MapKit';
@@ -2825,7 +3645,7 @@ if (result && result.sites) {
 
 ---
 
-### 10.10 路线规划 (navi)
+### 18.10 路线规划 (navi)
 
 ```typescript
 import { navi } from '@kit.MapKit';
@@ -2858,7 +3678,7 @@ if (driveResult && driveResult.routes && driveResult.routes.length > 0) {
 
 ---
 
-### 10.11 定位功能
+### 18.11 定位功能
 
 ```typescript
 import { geoLocationManager } from '@kit.LocationKit';
@@ -2887,7 +3707,7 @@ console.log('精度:', location.accuracy);
 
 ---
 
-### 10.12 距离计算
+### 18.12 距离计算
 
 ```typescript
 // 计算两点间距离（米）
@@ -2905,7 +3725,7 @@ function calculateDistance(p1: mapCommon.LatLng, p2: mapCommon.LatLng): number {
 
 ---
 
-### 10.13 华为 Map Kit API 速查表
+### 18.13 华为 Map Kit API 速查表
 
 | 功能 | 模块 | 关键方法 |
 |------|------|----------|
@@ -2927,7 +3747,7 @@ function calculateDistance(p1: mapCommon.LatLng, p2: mapCommon.LatLng): number {
 
 ---
 
-### 10.14 高德 vs 华为原生地图对比
+### 18.14 高德 vs 华为原生地图对比
 
 | 功能 | 高德地图 SDK | 华为 Map Kit |
 |------|-------------|--------------|
@@ -2943,6 +3763,726 @@ function calculateDistance(p1: mapCommon.LatLng, p2: mapCommon.LatLng): number {
 
 ---
 
-> 文档版本: 1.3  
-> 更新日期: 2025-12-20  
-> 整理自 HydroQuiz 项目开发实践 + 高德/华为地图 HarmonyOS SDK 教程
+## 19. 系统提醒通知 (Reminder Agent)
+
+### 19.1 概述
+
+在使用推送功能的时候需要在AGC中 "证书、APP ID 和Profile">APP ID 选择对应的应用在能力开关列表中选择推送服务
+接下来的步骤参照一下网址
+https://developer.huawei.com/consumer/cn/doc/harmonyos-guides/push-apply-right#section1128516504398
+想要在模拟机上测试这个功能
+设置>应用和元服务>‘测试应用’>通知>允许通知 和 置顶显示通知
+
+发布的时候需要
+
+HarmonyOS 提供 `reminderAgentManager` API 实现后台提醒功能，即使 App 被杀死也能在指定时间触发通知。
+
+### 19.2 权限配置
+
+在 `module.json5` 中添加权限：
+
+```json
+{
+  "requestPermissions": [
+    {
+      "name": "ohos.permission.PUBLISH_AGENT_REMINDER",
+      "reason": "$string:reminder_permission_reason",
+      "usedScene": {
+        "abilities": ["EntryAbility"],
+        "when": "always"
+      }
+    }
+  ]
+}
+```
+
+### 19.3 导入模块
+
+```typescript
+import { reminderAgentManager } from '@kit.BackgroundTasksKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+```
+
+### 19.4 提醒类型
+
+| 类型 | 常量 | 说明 |
+|------|------|------|
+| 闹钟 | `REMINDER_TYPE_ALARM` | 每天/每周指定时间触发 |
+| 日历 | `REMINDER_TYPE_CALENDAR` | 指定日期时间触发（一次性） |
+| 倒计时 | `REMINDER_TYPE_TIMER` | 倒计时结束后触发 |
+
+### 19.5 通知槽类型 (slotType)
+
+| 值 | 类型 | 状态栏图标 | 适用场景 |
+|----|------|-----------|----------|
+| 0 | 其他 | ❌ | 一般通知 |
+| 1 | 服务提醒 | ✅ | 提醒、闹钟（推荐） |
+| 2 | 内容资讯 | ❌ | 新闻、推送 |
+| 3 | 社交通信 | ❌ | 聊天消息 |
+
+> **重要**：要在状态栏显示图标，必须使用 `slotType: 1`
+
+### 19.6 发布闹钟提醒（每日/每周）
+
+```typescript
+// 每天 8:30 触发
+const alarmReminder: reminderAgentManager.ReminderRequestAlarm = {
+  reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_ALARM,
+  hour: 8,
+  minute: 30,
+  daysOfWeek: [1, 2, 3, 4, 5, 6, 7],  // 1=周一, 7=周日
+  title: '🐟 喂食提醒',
+  content: '该给鱼儿喂食了',
+  ringDuration: 30,        // 响铃时长（秒）
+  snoozeTimes: 2,          // 贪睡次数
+  timeInterval: 300,       // 贪睡间隔（秒）
+  notificationId: 1001,    // 通知ID（唯一）
+  slotType: 1,             // 服务提醒，状态栏显示图标
+  actionButton: [
+    { title: '完成', type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_CLOSE },
+    { title: '稍后', type: reminderAgentManager.ActionButtonType.ACTION_BUTTON_TYPE_SNOOZE }
+  ]
+}
+
+try {
+  const reminderId = await reminderAgentManager.publishReminder(alarmReminder)
+  console.info('提醒已发布，ID:', reminderId)
+} catch (err) {
+  console.error('发布失败:', (err as BusinessError).message)
+}
+```
+
+### 19.7 发布日历提醒（一次性）
+
+```typescript
+// 2025年12月25日 10:00 触发
+const calendarReminder: reminderAgentManager.ReminderRequestCalendar = {
+  reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_CALENDAR,
+  dateTime: {
+    year: 2025,
+    month: 12,    // 1-12
+    day: 25,
+    hour: 10,
+    minute: 0,
+    second: 0
+  },
+  title: '🎄 圣诞节提醒',
+  content: '记得给鱼缸换水',
+  ringDuration: 30,
+  snoozeTimes: 2,
+  notificationId: 1002,
+  slotType: 1
+}
+
+const reminderId = await reminderAgentManager.publishReminder(calendarReminder)
+```
+
+### 19.8 取消提醒
+
+```typescript
+// 取消单个提醒
+await reminderAgentManager.cancelReminder(reminderId)
+
+// 取消所有提醒
+await reminderAgentManager.cancelAllReminders()
+```
+
+### 19.9 获取已发布的提醒
+
+```typescript
+const reminders = await reminderAgentManager.getValidReminders()
+console.info('当前有效提醒数量:', reminders.length)
+```
+
+### 19.10 权限检查与请求
+
+```typescript
+import { abilityAccessCtrl, Permissions, common } from '@kit.AbilityKit'
+
+const REMINDER_PERMISSION: Permissions = 'ohos.permission.PUBLISH_AGENT_REMINDER'
+
+// 检查权限
+async function checkPermission(context: common.UIAbilityContext): Promise<boolean> {
+  const atManager = abilityAccessCtrl.createAtManager()
+  const tokenId = context.applicationInfo.accessTokenId
+  const status = atManager.checkAccessTokenSync(tokenId, REMINDER_PERMISSION)
+  return status === abilityAccessCtrl.GrantStatus.PERMISSION_GRANTED
+}
+
+// 请求权限
+async function requestPermission(context: common.UIAbilityContext): Promise<boolean> {
+  const atManager = abilityAccessCtrl.createAtManager()
+  const result = await atManager.requestPermissionsFromUser(context, [REMINDER_PERMISSION])
+  return result.authResults[0] === 0
+}
+```
+
+### 19.11 完整服务封装示例
+
+```typescript
+import { reminderAgentManager } from '@kit.BackgroundTasksKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+
+class ReminderService {
+  private nextNotificationId: number = 1000
+
+  // 发布每日提醒
+  async publishDailyReminder(
+    hour: number,
+    minute: number,
+    title: string,
+    content: string
+  ): Promise<number> {
+    const reminder: reminderAgentManager.ReminderRequestAlarm = {
+      reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_ALARM,
+      hour: hour,
+      minute: minute,
+      daysOfWeek: [1, 2, 3, 4, 5, 6, 7],
+      title: title,
+      content: content,
+      ringDuration: 30,
+      snoozeTimes: 2,
+      notificationId: this.nextNotificationId++,
+      slotType: 1
+    }
+    return await reminderAgentManager.publishReminder(reminder)
+  }
+
+  // 发布一次性提醒
+  async publishOnceReminder(
+    date: Date,
+    title: string,
+    content: string
+  ): Promise<number> {
+    const reminder: reminderAgentManager.ReminderRequestCalendar = {
+      reminderType: reminderAgentManager.ReminderType.REMINDER_TYPE_CALENDAR,
+      dateTime: {
+        year: date.getFullYear(),
+        month: date.getMonth() + 1,
+        day: date.getDate(),
+        hour: date.getHours(),
+        minute: date.getMinutes(),
+        second: 0
+      },
+      title: title,
+      content: content,
+      ringDuration: 30,
+      snoozeTimes: 2,
+      notificationId: this.nextNotificationId++,
+      slotType: 1
+    }
+    return await reminderAgentManager.publishReminder(reminder)
+  }
+}
+
+export const reminderService = new ReminderService()
+```
+
+### 19.12 使用示例
+
+```typescript
+// 在页面中使用
+import { reminderService } from '../service/ReminderService'
+
+// 添加每日喂食提醒（每天 8:00）
+const id1 = await reminderService.publishDailyReminder(8, 0, '🐟 喂食提醒', '该给鱼儿喂食了')
+
+// 添加一次性换水提醒（1分钟后）
+const futureTime = new Date(Date.now() + 60 * 1000)
+const id2 = await reminderService.publishOnceReminder(futureTime, '💧 换水提醒', '记得给鱼缸换水')
+```
+
+### 19.13 注意事项
+
+1. **权限必须授予** - 发布提醒前必须获得 `PUBLISH_AGENT_REMINDER` 权限
+2. **服务需初始化** - 在 EntryAbility 中初始化服务
+3. **时间必须在未来** - 日历提醒的时间必须大于当前时间
+4. **notificationId 唯一** - 每个提醒的 notificationId 必须唯一
+5. **slotType 选择** - 使用 `slotType: 1` 才能在状态栏显示图标
+6. **系统限制** - 单个应用最多 30 个有效提醒
+
+### 19.14 常见问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 通知不显示 | 权限未授予 | 检查并请求 `PUBLISH_AGENT_REMINDER` 权限 |
+| 状态栏无图标 | slotType 错误 | 改用 `slotType: 1` |
+| 提醒不触发 | 时间已过 | 确保设置的时间在未来 |
+| 发布失败 | 超出限制 | 删除旧提醒，单应用最多 30 个 |
+| 服务未初始化 | 未调用 init | 在 EntryAbility 中初始化服务 |
+
+---
+
+## 20. 蓝牙 BLE 开发
+
+> 本节整理了 HarmonyOS BLE（低功耗蓝牙）开发的核心功能，包括设备扫描、连接、数据读写等完整流程。
+
+### 20.1 核心模块与导入
+
+```typescript
+import { access, ble, connection } from '@kit.ConnectivityKit'
+import { BusinessError } from '@kit.BasicServicesKit'
+import { abilityAccessCtrl, Permissions, common } from '@kit.AbilityKit'
+```
+
+### 20.2 权限配置
+
+在 `module.json5` 中添加权限：
+
+```json5
+{
+  "requestPermissions": [
+    {
+      "name": "ohos.permission.ACCESS_BLUETOOTH",
+      "reason": "$string:bluetooth_permission_reason",
+      "usedScene": {
+        "abilities": ["EntryAbility"],
+        "when": "inuse"
+      }
+    },
+    {
+      "name": "ohos.permission.APPROXIMATELY_LOCATION",
+      "reason": "$string:location_permission_reason",
+      "usedScene": {
+        "abilities": ["EntryAbility"],
+        "when": "inuse"
+      }
+    }
+  ]
+}
+```
+
+> **重要**：BLE 扫描需要同时申请蓝牙权限和位置权限！
+
+### 20.3 检查蓝牙状态
+
+```typescript
+// 检查蓝牙是否开启
+function checkBluetoothState(): string {
+  try {
+    const state = access.getState()
+    switch (state) {
+      case access.BluetoothState.STATE_OFF:
+        return '已关闭'
+      case access.BluetoothState.STATE_ON:
+        return '已开启'
+      default:
+        return '未知'
+    }
+  } catch (err) {
+    return '获取失败'
+  }
+}
+
+// 开启蓝牙
+function enableBluetooth(): void {
+  try {
+    const state = access.getState()
+    if (state === access.BluetoothState.STATE_OFF) {
+      access.enableBluetooth()
+    }
+  } catch (err) {
+    console.error('开启蓝牙失败:', err)
+  }
+}
+```
+
+### 20.4 请求权限
+
+```typescript
+async function requestBlePermissions(context: common.UIAbilityContext): Promise<boolean> {
+  const permissions: Permissions[] = [
+    'ohos.permission.ACCESS_BLUETOOTH',
+    'ohos.permission.APPROXIMATELY_LOCATION'
+  ]
+  
+  const atManager = abilityAccessCtrl.createAtManager()
+  const result = await atManager.requestPermissionsFromUser(context, permissions)
+  
+  // 检查所有权限是否都已授予
+  return result.authResults.every(r => r === 0)
+}
+```
+
+### 20.5 BLE 设备扫描
+
+```typescript
+// 扫描结果接口
+interface ScanResult {
+  macAddress: string
+  deviceName: string
+  rssi: number
+}
+
+// 开始扫描
+function startBleScan(onDeviceFound: (device: ScanResult) => void): void {
+  // 注册扫描回调
+  ble.on('BLEDeviceFind', (results: ble.ScanResult[]) => {
+    for (const result of results) {
+      const device: ScanResult = {
+        macAddress: result.deviceId,
+        deviceName: result.deviceName || '未知设备',
+        rssi: result.rssi
+      }
+      onDeviceFound(device)
+    }
+  })
+
+  // 使用 Service UUID 过滤器扫描
+  // 注意：HarmonyOS BLE API 要求必须提供有效的过滤器
+  const filters: ble.ScanFilter[] = [
+    { serviceUuid: '00001800-0000-1000-8000-00805f9b34fb' },  // Generic Access
+    { serviceUuid: '00001801-0000-1000-8000-00805f9b34fb' },  // Generic Attribute
+    { serviceUuid: '0000180a-0000-1000-8000-00805f9b34fb' },  // Device Information
+    { serviceUuid: '0000180f-0000-1000-8000-00805f9b34fb' },  // Battery Service
+    { serviceUuid: '0000fff0-0000-1000-8000-00805f9b34fb' },  // 自定义服务
+  ]
+
+  ble.startBLEScan(filters)
+}
+
+// 停止扫描
+function stopBleScan(): void {
+  try {
+    ble.off('BLEDeviceFind')
+    ble.stopBLEScan()
+  } catch (err) {
+    console.error('停止扫描失败:', err)
+  }
+}
+```
+
+### 20.6 BLE 扫描限制说明
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 401 Invalid parameter | 空数组或无效过滤器 | 必须提供有效的 `ScanFilter[]` |
+| 扫描不到设备 | 设备未广播指定 Service UUID | 添加设备广播的 Service UUID 到过滤器 |
+| 权限被拒绝 | 未申请位置权限 | BLE 扫描需要 `APPROXIMATELY_LOCATION` 权限 |
+
+**常见 Service UUID**：
+| UUID | 服务名称 | 说明 |
+|------|----------|------|
+| `0x1800` | Generic Access | 通用访问服务 |
+| `0x1801` | Generic Attribute | 通用属性服务 |
+| `0x180A` | Device Information | 设备信息服务 |
+| `0x180F` | Battery Service | 电池服务 |
+| `0xFFE0` | 透传服务 | 常见的串口透传 |
+| `0xFFF0` | 自定义服务 | 自定义协议 |
+
+### 20.7 连接 BLE 设备
+
+```typescript
+class BleManager {
+  private gattClient: ble.GattClientDevice | null = null
+
+  // 连接设备
+  async connect(macAddress: string): Promise<boolean> {
+    try {
+      // 创建 GATT 客户端
+      this.gattClient = ble.createGattClientDevice(macAddress)
+
+      // 注册连接状态回调
+      this.gattClient.on('BLEConnectionStateChange', (state: ble.BLEConnectionChangeState) => {
+        if (state.state === 0) {
+          console.info('设备已断开')
+        } else if (state.state === 2) {
+          console.info('设备已连接')
+        }
+      })
+
+      // 发起连接
+      await this.gattClient.connect()
+      
+      // 发现服务
+      const services = await this.gattClient.getServices()
+      console.info('发现服务数量:', services.length)
+      
+      return true
+    } catch (err) {
+      console.error('连接失败:', err)
+      return false
+    }
+  }
+
+  // 断开连接
+  disconnect(): void {
+    if (this.gattClient) {
+      try {
+        this.gattClient.off('BLEConnectionStateChange')
+        this.gattClient.disconnect()
+        this.gattClient.close()
+      } catch (err) {
+        console.error('断开失败:', err)
+      }
+      this.gattClient = null
+    }
+  }
+}
+```
+
+### 20.8 读写特征值
+
+```typescript
+// 读取特征值
+async readCharacteristic(serviceUuid: string, charUuid: string): Promise<ArrayBuffer | null> {
+  if (!this.gattClient) return null
+
+  try {
+    const characteristic: ble.BLECharacteristic = {
+      serviceUuid: serviceUuid,
+      characteristicUuid: charUuid,
+      characteristicValue: new ArrayBuffer(0),
+      descriptors: []
+    }
+
+    const result = await this.gattClient.readCharacteristicValue(characteristic)
+    return result.characteristicValue
+  } catch (err) {
+    console.error('读取失败:', err)
+    return null
+  }
+}
+
+// 写入特征值
+async writeCharacteristic(serviceUuid: string, charUuid: string, data: Uint8Array): Promise<boolean> {
+  if (!this.gattClient) return false
+
+  try {
+    const characteristic: ble.BLECharacteristic = {
+      serviceUuid: serviceUuid,
+      characteristicUuid: charUuid,
+      characteristicValue: data.buffer as ArrayBuffer,
+      descriptors: []
+    }
+
+    await this.gattClient.writeCharacteristicValue(characteristic, ble.GattWriteType.WRITE)
+    return true
+  } catch (err) {
+    console.error('写入失败:', err)
+    return false
+  }
+}
+```
+
+### 20.9 订阅通知
+
+```typescript
+// 订阅特征值变化通知
+async subscribeNotify(serviceUuid: string, charUuid: string, callback: (data: ArrayBuffer) => void): Promise<void> {
+  if (!this.gattClient) return
+
+  try {
+    // 注册特征值变化回调
+    this.gattClient.on('BLECharacteristicChange', (char: ble.BLECharacteristic) => {
+      if (char.characteristicUuid === charUuid) {
+        callback(char.characteristicValue)
+      }
+    })
+
+    // 启用通知
+    const notifyChar: ble.BLECharacteristic = {
+      serviceUuid: serviceUuid,
+      characteristicUuid: charUuid,
+      characteristicValue: new ArrayBuffer(0),
+      descriptors: []
+    }
+    await this.gattClient.setCharacteristicChangeNotification(notifyChar, true)
+  } catch (err) {
+    console.error('订阅通知失败:', err)
+  }
+}
+```
+
+### 20.10 获取已配对设备（经典蓝牙）
+
+```typescript
+// 获取系统已配对的蓝牙设备（仅经典蓝牙，不包括 BLE）
+function getPairedDevices(): string[] {
+  try {
+    const devices = connection.getPairedDevices()
+    return devices.map(deviceId => {
+      const name = connection.getRemoteDeviceName(deviceId)
+      return `${name} (${deviceId})`
+    })
+  } catch (err) {
+    console.error('获取已配对设备失败:', err)
+    return []
+  }
+}
+```
+
+### 20.11 完整 BLE 管理器示例
+
+```typescript
+import { ble } from '@kit.ConnectivityKit'
+
+export type ConnectionState = 'disconnected' | 'connecting' | 'connected'
+
+export class BleManager {
+  private static instance: BleManager | null = null
+  private gattClient: ble.GattClientDevice | null = null
+  private _connectionState: ConnectionState = 'disconnected'
+  private stateListeners: ((state: ConnectionState) => void)[] = []
+
+  static getInstance(): BleManager {
+    if (!BleManager.instance) {
+      BleManager.instance = new BleManager()
+    }
+    return BleManager.instance
+  }
+
+  get connectionState(): ConnectionState {
+    return this._connectionState
+  }
+
+  get isConnected(): boolean {
+    return this._connectionState === 'connected'
+  }
+
+  // 添加状态监听器
+  addStateListener(listener: (state: ConnectionState) => void): void {
+    this.stateListeners.push(listener)
+  }
+
+  // 移除状态监听器
+  removeStateListener(listener: (state: ConnectionState) => void): void {
+    this.stateListeners = this.stateListeners.filter(l => l !== listener)
+  }
+
+  private updateState(state: ConnectionState): void {
+    if (this._connectionState !== state) {
+      this._connectionState = state
+      this.stateListeners.forEach(l => l(state))
+    }
+  }
+
+  // 连接设备
+  async connect(macAddress: string): Promise<boolean> {
+    if (this._connectionState !== 'disconnected') {
+      this.disconnect()
+      await new Promise<void>(resolve => setTimeout(resolve, 500))
+    }
+
+    this.updateState('connecting')
+
+    try {
+      this.gattClient = ble.createGattClientDevice(macAddress)
+      
+      this.gattClient.on('BLEConnectionStateChange', (state) => {
+        if (state.state === 0) {
+          this.updateState('disconnected')
+        }
+      })
+
+      await this.gattClient.connect()
+      await this.gattClient.getServices()
+      
+      this.updateState('connected')
+      return true
+    } catch (err) {
+      this.updateState('disconnected')
+      return false
+    }
+  }
+
+  // 断开连接
+  disconnect(): void {
+    if (this.gattClient) {
+      try {
+        this.gattClient.off('BLEConnectionStateChange')
+        this.gattClient.off('BLECharacteristicChange')
+        this.gattClient.disconnect()
+        this.gattClient.close()
+      } catch (err) {
+        console.error('断开失败:', err)
+      }
+      this.gattClient = null
+    }
+    this.updateState('disconnected')
+  }
+}
+
+export const bleManager = BleManager.getInstance()
+```
+
+### 20.12 BLE API 速查表
+
+| 功能 | 模块 | 关键方法 |
+|------|------|----------|
+| 蓝牙状态 | `access` | `getState()`, `enableBluetooth()` |
+| BLE 扫描 | `ble` | `startBLEScan()`, `stopBLEScan()` |
+| 扫描回调 | `ble` | `on('BLEDeviceFind')` |
+| 创建客户端 | `ble` | `createGattClientDevice()` |
+| 连接设备 | `GattClientDevice` | `connect()`, `disconnect()` |
+| 发现服务 | `GattClientDevice` | `getServices()` |
+| 读取特征 | `GattClientDevice` | `readCharacteristicValue()` |
+| 写入特征 | `GattClientDevice` | `writeCharacteristicValue()` |
+| 订阅通知 | `GattClientDevice` | `setCharacteristicChangeNotification()` |
+| 连接状态 | `GattClientDevice` | `on('BLEConnectionStateChange')` |
+| 特征变化 | `GattClientDevice` | `on('BLECharacteristicChange')` |
+| 已配对设备 | `connection` | `getPairedDevices()` |
+
+### 20.13 常见问题
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 401 Invalid parameter | 扫描过滤器无效 | 使用有效的 Service UUID 过滤器 |
+| 扫描不到设备 | 设备未广播指定服务 | 添加设备的 Service UUID 到过滤器 |
+| 连接失败 | 设备不在范围内 | 确保设备已开机且在附近 |
+| 读写失败 | 特征 UUID 错误 | 检查 Service UUID 和 Characteristic UUID |
+| 通知不触发 | 未启用通知 | 调用 `setCharacteristicChangeNotification(true)` |
+| 权限被拒绝 | 缺少位置权限 | 申请 `APPROXIMATELY_LOCATION` 权限 |
+
+---
+
+> 文档版本: 1.6  
+> 更新日期: 2025-12-23  
+> 整理自 HydroQuiz、养鱼宝、工程狮考证助手项目开发实践 + 高德/华为地图 HarmonyOS SDK 教程
+
+---
+
+## 快速参考表
+
+| 功能 | Kit | 核心 API |
+|------|-----|----------|
+| 语音转文字 | CoreSpeechKit | `speechRecognizer.createEngine()` |
+| 文字转语音 | CoreSpeechKit | `textToSpeech.createEngine()` |
+| 图片转文字 | CoreVisionKit | `textRecognition.recognizeText()` |
+| 文档扫描 | VisionKit | `DocumentScanner` |
+| 卡片开发 | FormKit | `FormExtensionAbility` |
+| 图片选择 | MediaLibraryKit | `PhotoViewPicker` |
+| 数据存储 | ArkData | `preferences` |
+| 动画 | ArkUI | `animateTo()`, `transition()` |
+| 手势 | ArkUI | `GestureGroup`, `PanGesture` |
+| 网页组件 | ArkWeb | `Web`, `webview.WebviewController` |
+| 图表(Web) | ECharts (JS) | `echarts.init()`, `setOption()` |
+| 图表(原生) | @ohos/mpchart | `LineChart`, `LineChartModel` |
+| 路由导航 | @ohos.router | `pushUrl()`, `back()` |
+| 弹窗提示 | @ohos.promptAction | `showToast()`, `showDialog()` |
+| 剪贴板 | @ohos.pasteboard | `setData()` |
+| 系统分享 | ShareKit | `ShareController` |
+| 组件截图 | ArkUI | `componentSnapshot.get()` |
+| 高德地图 | @amap/amap_lbs_map3d | `MapViewComponent` |
+| 华为地图 | MapKit | `MapComponent` |
+| 系统提醒 | BackgroundTasksKit | `reminderAgentManager.publishReminder()` |
+| BLE 扫描 | ConnectivityKit | `ble.startBLEScan()` |
+| BLE 连接 | ConnectivityKit | `ble.createGattClientDevice()` |
+| 蓝牙状态 | ConnectivityKit | `access.getState()` |
+
+---
+
+## 常见问题速查
+
+| 问题 | 原因 | 解决方案 |
+|------|------|----------|
+| 深色主题下出现黄色 | 使用了 `#ffffffXX` 半透明白色 | 改用功能色透明度如 `#36e27b20` |
+| ForEach 不刷新 | key 没变化 | 确保 key 生成函数返回唯一值 |
+| 动画不生效 | 状态变化在同一帧 | 用 setTimeout 分帧或 animateTo |
+| Preferences 数据丢失 | 没调用 flush() | 写入后必须 `await flush()` |
+| 图表不显示 | 没调用 invalidate() | 数据更新后调用 `model.invalidate()` |
+| 语音识别没声音 | 麦克风权限未授权 | 检查 `ohos.permission.MICROPHONE` |
+| TTS 朗读失败 | 文本过长或含特殊符号 | 限制10000字，过滤特殊符号 |
+| 卡片数据不更新 | formId 未保存 | 使用 `formProvider.updateForm()` |
+| 拖拽动画不流畅 | 整个列表重渲染 | 使用 `@Observed` + `@ObjectLink` |
+| Map/Set 状态不刷新 | 直接修改不触发更新 | 创建新实例 `new Set(this.set)` |

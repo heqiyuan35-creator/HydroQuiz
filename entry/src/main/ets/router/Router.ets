@@ -259,4 +259,23 @@ export class Router {
     }
     await Router.push(AppConstants.ROUTE_QUESTION_BANK, params);
   }
+
+  // ========== 闯关模式相关路由 ==========
+
+  /**
+   * 跳转到闯关模式
+   */
+  static async goToGameMode(): Promise<void> {
+    await Router.push(AppConstants.ROUTE_GAME_MODE);
+  }
+
+  /**
+   * 跳转到关卡答题页
+   */
+  static async goToGameLevel(levelId: string, chapterId: string): Promise<void> {
+    const params: RouteParams = {};
+    params['levelId'] = levelId as Object;
+    params['chapterId'] = chapterId as Object;
+    await Router.push(AppConstants.ROUTE_GAME_LEVEL, params);
+  }
 }

@@ -168,10 +168,82 @@ class DatabaseService {
         // 字段已存在，忽略错误
       }
 
+      // 卡片系统表
+      await this.createCardTables();
+
       Logger.info('[DatabaseService] Tables created successfully');
     } catch (error) {
       Logger.error('[DatabaseService] Failed to create tables', error as Error);
       throw new Error('Failed to create database tables');
+    }
+  }
+
+  /**
+   * 创建卡片系统相关表
+   */
+  private async createCardTables(): Promise<void> {
+    if (!this.rdbStore) {
+      throw new Error('Database not initialized');
+    }
+
+    // 用户卡片表
+    const createUserCardsTable: string = `
+      CREATE TABLE IF NOT EXISTS user_cards (
+        id TEXT PRIMARY KEY,
+        card_id TEXT NOT NULL UNIQUE,
+        star_level INTEGER DEFAULT 1,
+        fragments INTEGER DEFAULT 0,
+        first_obtain_time INTEGER NOT NULL,
+        last_obtain_time INTEGER NOT NULL,
+        obtain_count INTEGER DEFAULT 1
+      )
+    `;
+
+    // 卡片掉落记录表
+    const createCardDropRecordsTable: string = `
+      CREATE TABLE IF NOT EXISTS card_drop_records (
+        id TEXT PRIMARY KEY,
+        card_id TEXT NOT NULL,
+        drop_time INTEGER NOT NULL,
+        question_id TEXT,
+        subject_id TEXT,
+        practice_mode TEXT,
+        is_new INTEGER DEFAULT 0
+      )
+    `;
+
+    // 掉落状态表（保底计数等）
+    const createCardDropStateTable: string = `
+      CREATE TABLE IF NOT EXISTS card_drop_state (
+        id TEXT PRIMARY KEY,
+        pity_count INTEGER DEFAULT 0,
+        last_drop_time INTEGER DEFAULT 0,
+        total_drops INTEGER DEFAULT 0,
+        total_answers INTEGER DEFAULT 0
+      )
+    `;
+
+    try {
+      await this.rdbStore.executeSql(createUserCardsTable);
+      await this.rdbStore.executeSql(createCardDropRecordsTable);
+      await this.rdbStore.executeSql(createCardDropStateTable);
+
+      // 添加 total_answers 列（如果不存在）- 用于数据库升级
+      try {
+        await this.rdbStore.executeSql('ALTER TABLE card_drop_state ADD COLUMN total_answers INTEGER DEFAULT 0');
+      } catch (e) {
+        // 列已存在，忽略错误
+      }
+
+      // 创建卡片相关索引
+      await this.rdbStore.executeSql('CREATE INDEX IF NOT EXISTS idx_user_cards_card_id ON user_cards(card_id)');
+      await this.rdbStore.executeSql('CREATE INDEX IF NOT EXISTS idx_drop_records_time ON card_drop_records(drop_time)');
+      await this.rdbStore.executeSql('CREATE INDEX IF NOT EXISTS idx_drop_records_card ON card_drop_records(card_id)');
+
+      Logger.info('[DatabaseService] Card tables created successfully');
+    } catch (error) {
+      Logger.error('[DatabaseService] Failed to create card tables', error as Error);
+      throw new Error('Failed to create card database tables');
     }
   }
 
