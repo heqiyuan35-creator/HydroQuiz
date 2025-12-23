@@ -9,11 +9,12 @@
 3. [语音转文字 (ASR)](#3-语音转文字-asr)
 4. [文字转语音 (TTS)](#4-文字转语音-tts)
 5. [图片转文字 (OCR)](#5-图片转文字-ocr)
-6. [Form Kit 卡片开发](#6-form-kit-卡片开发)
-7. [ArkWeb 网页组件](#7-arkweb-网页组件)
-8. [ECharts 图表集成](#8-echarts-图表集成)
-9. [ArkTS 常见错误与解决方案](#9-arkts-常见错误与解决方案)
-10. [ArkTS 最佳实践](#10-arkts-最佳实践)
+6. [文档扫描 (DocumentScanner)](#6-文档扫描-documentscanner)
+7. [Form Kit 卡片开发](#7-form-kit-卡片开发)
+8. [ArkWeb 网页组件](#8-arkweb-网页组件)
+9. [ECharts 图表集成](#9-echarts-图表集成)
+10. [ArkTS 常见错误与解决方案](#10-arkts-常见错误与解决方案)
+11. [高德地图 SDK 开发](#11-高德地图-sdk-开发)
 
 ---
 
@@ -803,7 +804,224 @@ private async startOcrRecognition(): Promise<void> {
 
 ---
 
-## 6. Form Kit 卡片开发
+## 6. 文档扫描 (DocumentScanner)
+
+### 核心 Kit
+```typescript
+import { 
+  DocType, 
+  DocumentScanner, 
+  DocumentScannerConfig, 
+  SaveOption, 
+  FilterId, 
+  ShootingMode 
+} from "@kit.VisionKit";
+```
+
+### 配置参数说明
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `supportType` | `DocType[]` | 支持的文档类型：`DocType.DOC`(文档)、`DocType.SHEET`(表格) |
+| `isGallerySupported` | `boolean` | 是否支持从相册选择 |
+| `editTabs` | `array` | 编辑标签页配置 |
+| `maxShotCount` | `number` | 最大拍摄数量 |
+| `defaultFilterId` | `FilterId` | 默认滤镜：`ORIGINAL`(原图)、`ENHANCE`(增强)等 |
+| `defaultShootingMode` | `ShootingMode` | 拍摄模式：`MANUAL`(手动)、`AUTO`(自动) |
+| `isShareable` | `boolean` | 是否可分享 |
+| `originalUris` | `string[]` | 原始图片URI列表（用于编辑已有图片） |
+
+### 基础用法
+
+```typescript
+import { 
+  DocType, 
+  DocumentScanner, 
+  DocumentScannerConfig, 
+  SaveOption, 
+  FilterId, 
+  ShootingMode 
+} from "@kit.VisionKit";
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const TAG = 'DocumentScanner';
+
+@Entry
+@Component
+struct DocumentScanPage {
+  private docScanConfig = new DocumentScannerConfig();
+
+  aboutToAppear() {
+    // 配置文档扫描参数
+    this.docScanConfig.supportType = [DocType.DOC, DocType.SHEET];
+    this.docScanConfig.isGallerySupported = true;
+    this.docScanConfig.editTabs = [];
+    this.docScanConfig.maxShotCount = 3;
+    this.docScanConfig.defaultFilterId = FilterId.ORIGINAL;
+    this.docScanConfig.defaultShootingMode = ShootingMode.MANUAL;
+    this.docScanConfig.isShareable = true;
+    this.docScanConfig.originalUris = [];
+  }
+
+  build() {
+    Column() {
+      DocumentScanner({
+        scannerConfig: this.docScanConfig,
+        onResult: (code: number, saveType: SaveOption, uris: string[]) => {
+          hilog.info(0x0001, TAG, `result code: ${code}, save: ${saveType}`);
+          uris.forEach(uriString => {
+            hilog.info(0x0001, TAG, `uri: ${uriString}`);
+          });
+        }
+      })
+      .size({ width: '100%', height: '100%' })
+    }
+    .height('100%')
+    .width('100%')
+  }
+}
+```
+
+### 完整开发实例（双页面实现）
+
+#### 入口页 - MainPage.ets
+
+```typescript
+import { DocDemoPage } from './DocDemoPage';
+
+@Entry
+@Component
+struct MainPage {
+  @Provide('pathStack') pathStack: NavPathStack = new NavPathStack();
+
+  @Builder
+  PageMap(name: string) {
+    if (name === 'documentScanner') {
+      DocDemoPage()
+    }
+  }
+
+  build() {
+    Navigation(this.pathStack) {
+      Button('文档扫描', { stateEffect: true, type: ButtonType.Capsule })
+        .width('50%')
+        .height(40)
+        .onClick(() => {
+          this.pathStack.pushPath({ name: 'documentScanner' });
+        })
+    }
+    .title('文档扫描控件Demo')
+    .navDestination(this.PageMap)
+    .mode(NavigationMode.Stack)
+  }
+}
+```
+
+#### 扫描页 - DocDemoPage.ets
+
+```typescript
+import {
+  DocType,
+  DocumentScanner,
+  DocumentScannerConfig,
+  SaveOption,
+  FilterId,
+  ShootingMode
+} from "@kit.VisionKit";
+import { hilog } from '@kit.PerformanceAnalysisKit';
+
+const TAG: string = 'DocDemoPage';
+
+@Component
+export struct DocDemoPage {
+  @State docImageUris: string[] = [];
+  @Consume('pathStack') pathStack: NavPathStack;
+  private docScanConfig = new DocumentScannerConfig();
+
+  aboutToAppear() {
+    this.docScanConfig.supportType = [DocType.DOC, DocType.SHEET];
+    this.docScanConfig.isGallerySupported = true;
+    this.docScanConfig.editTabs = [];
+    this.docScanConfig.maxShotCount = 3;
+    this.docScanConfig.defaultFilterId = FilterId.ORIGINAL;
+    this.docScanConfig.defaultShootingMode = ShootingMode.MANUAL;
+    this.docScanConfig.isShareable = true;
+    this.docScanConfig.originalUris = [];
+  }
+
+  build() {
+    NavDestination() {
+      Stack({ alignContent: Alignment.Top }) {
+        // 展示扫描结果
+        List() {
+          ForEach(this.docImageUris, (uri: string) => {
+            ListItem() {
+              Image(uri)
+                .objectFit(ImageFit.Contain)
+                .width(100)
+                .height(100)
+            }
+          })
+        }
+        .listDirection(Axis.Vertical)
+        .alignListItem(ListItemAlign.Center)
+        .margin({ top: 50 })
+        .width('80%')
+        .height('80%')
+
+        // 文档扫描控件
+        DocumentScanner({
+          scannerConfig: this.docScanConfig,
+          onResult: (code: number, saveType: SaveOption, uris: string[]) => {
+            hilog.info(0x0001, TAG, `result code: ${code}, save: ${saveType}`);
+            
+            // code === -1 表示用户取消
+            if (code === -1) {
+              this.pathStack.pop();
+              return;
+            }
+            
+            uris.forEach(uriString => {
+              hilog.info(0x0001, TAG, `uri: ${uriString}`);
+            });
+            this.docImageUris = uris;
+          }
+        })
+        .size({ width: '100%', height: '100%' })
+      }
+      .width('100%')
+      .height('100%')
+    }
+    .width('100%')
+    .height('100%')
+    .hideTitleBar(true)
+  }
+}
+```
+
+### 回调参数说明
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `code` | `number` | 结果码：`0`=成功，`-1`=用户取消 |
+| `saveType` | `SaveOption` | 保存类型 |
+| `uris` | `string[]` | 扫描后的文档图片URI列表 |
+
+### 使用场景
+- 📄 文档数字化：将纸质文档扫描为电子版
+- 📊 表格识别：扫描表格并进行后续OCR处理
+- 🧾 票据扫描：扫描发票、收据等
+- 📝 笔记扫描：将手写笔记转为电子图片
+
+### 注意事项
+1. DocumentScanner 是一个全屏控件，会覆盖整个页面
+2. 建议使用 Navigation + NavDestination 实现页面跳转
+3. 扫描完成后通过 `onResult` 回调获取图片URI
+4. 用户取消时 `code === -1`，需要处理返回逻辑
+
+---
+
+## 7. Form Kit 卡片开发
 
 ### 核心 Kit
 ```typescript
@@ -1181,7 +1399,7 @@ export const widgetDataService = new WidgetDataService();
 
 ---
 
-## 7. ArkWeb 网页组件
+## 8. ArkWeb 网页组件
 
 ### 核心 Kit
 ```typescript
@@ -1318,9 +1536,9 @@ Web({ src: $rawfile('index.html'), controller: this.webController })
 
 ---
 
-## 8. ECharts 图表集成
+## 9. ECharts 图表集成
 
-### 8.1 项目结构
+### 9.1 项目结构
 
 ```
 entry/src/main/resources/rawfile/
@@ -1576,7 +1794,7 @@ struct StudyReportPage {
 
 ---
 
-## 9. ArkTS 常见错误与解决方案
+## 10. ArkTS 常见错误与解决方案
 
 > 本节整理了 HarmonyOS ArkTS 开发中常见的编译错误及其解决方案，帮助快速定位和修复问题。
 
@@ -1918,7 +2136,7 @@ questions.push(...getConcreteQuestions2(now));
 
 ---
 
-## 9. 高德地图 SDK 开发
+## 11. 高德地图 SDK 开发
 
 > 本节整理了 HarmonyOS 高德地图 SDK 的核心功能和使用方法，涵盖地图显示、标记、定位、搜索、路线规划等完整功能。
 

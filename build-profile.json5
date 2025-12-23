@@ -5,13 +5,13 @@
         "name": "default",
         "type": "HarmonyOS",
         "material": {
-          "certpath": "C:\\Users\\Lenovo\\.ohos\\config\\default_HydroQuiz_s5dVisaU_UujgW1fskF_aI6Smn8spoybET2NxnQ-PSE=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001B12D6008CFE406B955A75C9069E0F113BC88643DAED61193DA381BF121357814EA0A3478DFF14FC",
-          "profile": "C:\\Users\\Lenovo\\.ohos\\config\\default_HydroQuiz_s5dVisaU_UujgW1fskF_aI6Smn8spoybET2NxnQ-PSE=.p7b",
+          "storeFile": "C:/Users/Lenovo/Desktop/水利工程检测员刷题宝密钥/nianan.p12",
+          "storePassword": "00000019EF505186BFEFF09B583963CC18B02949731F71F301E090D6A10005C3E8E46933F64ED45788",
+          "keyAlias": "nianan",
+          "keyPassword": "0000001932580C9162B5100095665391E9FA694BBDB32DBA31B6C83CD2106E5346BADF655A8836D82A",
           "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\Lenovo\\.ohos\\config\\default_HydroQuiz_s5dVisaU_UujgW1fskF_aI6Smn8spoybET2NxnQ-PSE=.p12",
-          "storePassword": "0000001BAC4F379874B3029A99BACD1E345E036CC40D8506CDD0C9011F98D56F06A5A1351BC9028DD0222A"
+          "profile": "C:/Users/Lenovo/Desktop/水利工程检测员刷题宝密钥/水利工程Release.p7b",
+          "certpath": "C:/Users/Lenovo/Desktop/水利工程检测员刷题宝密钥/水利检修.cer"
         }
       }
     ],
