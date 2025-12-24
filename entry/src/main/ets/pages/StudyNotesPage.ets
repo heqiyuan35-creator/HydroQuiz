@@ -37,6 +37,11 @@ struct StudyNotesPage {
     this.loadNotes();
   }
 
+  onPageShow(): void {
+    // 页面显示时刷新笔记数据
+    this.loadNotes();
+  }
+
   private async loadNotes(): Promise<void> {
     this.isLoading = true;
     try {

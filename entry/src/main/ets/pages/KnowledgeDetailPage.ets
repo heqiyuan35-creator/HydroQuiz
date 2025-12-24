@@ -62,19 +62,19 @@ struct KnowledgeDetailPage {
     if (foundArticle) {
       this.article = foundArticle;
       this.isFavorited = this.knowledgeService.isFavorited(articleId);
-      this.knowledgeService.incrementViewCount(articleId);
       this.currentIndex = this.allArticles.findIndex((a: KnowledgeArticle) => a.id === articleId);
       this.noteContent = this.knowledgeService.getArticleNote(articleId);
+      // 增加浏览次数，标记为已读
+      this.knowledgeService.incrementViewCount(articleId);
     }
   }
 
   aboutToDisappear(): void {
-    if (this.article) {
-      const readTime = Math.floor((Date.now() - this.startTime) / 1000);
-      this.knowledgeService.updateReadProgress(this.article.id, 100, readTime);
-    }
     this.ttsService.stop();
     this.ttsService.clearCallback();
+    // 通知主页刷新知识库数据（增加触发器值来触发Watch）
+    const currentTrigger = AppStorage.get<number>('knowledgeRefreshTrigger') || 0;
+    AppStorage.set('knowledgeRefreshTrigger', currentTrigger + 1);
   }
 
   private setupTTSCallback(): void {
@@ -104,6 +104,7 @@ struct KnowledgeDetailPage {
 
   private saveNote(): void {
     if (this.article) {
+      // 异步保存笔记
       this.knowledgeService.saveArticleNote(this.article.id, this.noteContent);
       promptAction.showToast({ message: '笔记已保存', duration: 1500 });
       this.showNoteDialog = false;
@@ -255,9 +256,11 @@ struct KnowledgeDetailPage {
             .onClick(() => {
               if (this.article) {
                 if (this.isFavorited) {
+                  // 异步取消收藏
                   this.knowledgeService.unfavoriteArticle(this.article.id);
                   promptAction.showToast({ message: '已取消收藏', duration: 1500 });
                 } else {
+                  // 异步收藏
                   this.knowledgeService.favoriteArticle(this.article.id);
                   promptAction.showToast({ message: '已收藏', duration: 1500 });
                 }
@@ -312,10 +315,113 @@ struct KnowledgeDetailPage {
         if (this.noteContent.length > 0) {
           this.NotePreview()
         }
+        // 相关知识推荐
+        this.RelatedArticles()
       }
       .padding({ bottom: 100 })
     }
     .scrollBar(BarState.Off).width('100%').layoutWeight(1)
+  }
+
+  /**
+   * 获取相关文章（同分类或同科目）
+   */
+  private getRelatedArticles(): KnowledgeArticle[] {
+    if (!this.article) return [];
+    // 优先同分类，其次同科目
+    let related = this.allArticles.filter((a: KnowledgeArticle) =>
+      a.id !== this.article!.id && a.categoryId === this.article!.categoryId
+    );
+    if (related.length < 3) {
+      const sameSubject = this.allArticles.filter((a: KnowledgeArticle) =>
+        a.id !== this.article!.id &&
+        a.subjectId === this.article!.subjectId &&
+        a.categoryId !== this.article!.categoryId
+      );
+      related = related.concat(sameSubject);
+    }
+    return related.slice(0, 5);
+  }
+
+  /**
+   * 相关知识推荐
+   */
+  @Builder
+  RelatedArticles() {
+    if (this.getRelatedArticles().length > 0) {
+      Column() {
+        Row() {
+          Text('📚')
+            .fontSize(14)
+          Text(' 相关知识')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(EYE_CARE_TEXT_PRIMARY)
+          
+          Blank()
+          
+          Text(`${this.getRelatedArticles().length} 篇`)
+            .fontSize(11)
+            .fontColor(EYE_CARE_TEXT_HINT)
+        }
+        .width('100%')
+        .margin({ bottom: 10 })
+
+        ForEach(this.getRelatedArticles(), (article: KnowledgeArticle) => {
+          Row() {
+            // 左侧色条
+            Column()
+              .width(3)
+              .height(40)
+              .backgroundColor(EYE_CARE_ACCENT + '60')
+              .borderRadius(2)
+
+            // 文章信息
+            Column() {
+              Text(article.title)
+                .fontSize(14)
+                .fontColor(EYE_CARE_TEXT_PRIMARY)
+                .maxLines(1)
+                .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+              Row() {
+                Text(article.categoryName)
+                  .fontSize(11)
+                  .fontColor(EYE_CARE_ACCENT)
+                Text(` · ${article.readTime}分钟`)
+                  .fontSize(11)
+                  .fontColor(EYE_CARE_TEXT_HINT)
+              }
+              .margin({ top: 4 })
+            }
+            .alignItems(HorizontalAlign.Start)
+            .layoutWeight(1)
+            .margin({ left: 10 })
+
+            // 箭头
+            Text('›')
+              .fontSize(18)
+              .fontColor(EYE_CARE_TEXT_HINT)
+          }
+          .width('100%')
+          .padding({ left: 10, right: 12, top: 12, bottom: 12 })
+          .backgroundColor(EYE_CARE_SURFACE)
+          .borderRadius(10)
+          .border({ width: 1, color: EYE_CARE_DIVIDER })
+          .margin({ top: 6 })
+          .onClick(() => {
+            this.loadArticle(article.id);
+            this.startTime = Date.now();
+          })
+        }, (article: KnowledgeArticle) => article.id)
+      }
+      .width('100%')
+      .padding(ThemeConstants.SPACING_MD)
+      .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_LG })
+      .backgroundColor(EYE_CARE_SURFACE)
+      .borderRadius(12)
+      .border({ width: 1, color: EYE_CARE_DIVIDER })
+    }
   }
 
   @Builder
@@ -345,10 +451,6 @@ struct KnowledgeDetailPage {
         Row() {
           Text('⏱').fontSize(12)
           Text(`${this.article!.readTime} 分钟`).fontSize(12).fontColor(EYE_CARE_TEXT_HINT).margin({ left: 4 })
-        }
-        Row() {
-          Text('👁').fontSize(12)
-          Text(`${this.article!.viewCount}`).fontSize(12).fontColor(EYE_CARE_TEXT_HINT).margin({ left: 4 })
         }
       }
       .margin({ top: ThemeConstants.SPACING_SM })

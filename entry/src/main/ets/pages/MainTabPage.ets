@@ -24,6 +24,9 @@ import { onboardingService } from '../services/OnboardingService';
 import { OnboardingGuideOverlay } from '../components/OnboardingGuideOverlay';
 import { GuideStep } from '../common/types/OnboardingTypes';
 
+// 初始化 AppStorage 中的知识库刷新标记（使用数值，每次+1触发Watch）
+AppStorage.setOrCreate('knowledgeRefreshTrigger', 0);
+
 /**
  * Tab项配置接口
  */
@@ -48,6 +51,8 @@ struct MainTabPage {
   @State todayStats: TodayStatistics = { total: 0, correct: 0, accuracy: 0, streak: 0 };
   @State wrongCount: number = 0;
   @State favoriteCount: number = 0;
+  // 监听知识库刷新触发器（数值变化时触发Watch）
+  @StorageLink('knowledgeRefreshTrigger') @Watch('onKnowledgeRefreshTrigger') knowledgeRefreshTrigger: number = 0;
   @State totalQuestionCount: number = 0;
   @State selectedFilter: QuestionFilterType = 'all';
   @State examRecords: ExamRecord[] = [];
@@ -76,8 +81,12 @@ struct MainTabPage {
   @State knowledgeSubjects: KnowledgeSubject[] = [];
   @State allKnowledgeArticles: KnowledgeArticle[] = [];
   @State knowledgeSearchText: string = '';
+  @State knowledgeFavoriteCount: number = 0;
+  @State knowledgeNoteCount: number = 0;
   @State expandedSubjects: Set<string> = new Set<string>();
   @State expandedCategories: Set<string> = new Set<string>();
+  // 知识库刷新计数器（用于强制UI更新）
+  @State knowledgeRefreshKey: number = 0;
   // 成就解锁弹窗状态
   @State showAchievementDialog: boolean = false;
   @State unlockedAchievement: Achievement | null = null;
@@ -102,6 +111,16 @@ struct MainTabPage {
   @State achievementDialogScale: number = 0.5;
   @State achievementDialogOpacity: number = 0;
   @State achievementIconScale: number = 0;
+  // 装饰圆圈漂浮动画状态
+  @State circleOffset1: Position = { x: 100, y: 10 };
+  @State circleOffset2: Position = { x: 110, y: 15 };
+  @State circleOffset3: Position = { x: 90, y: 5 };
+  @State circleOffset4: Position = { x: 85, y: 10 };
+  @State circleOffset5: Position = { x: 95, y: 15 };
+  // 模拟考试区域装饰圆圈
+  @State examCircleOffset1: Position = { x: 240, y: -10 };
+  @State examCircleOffset2: Position = { x: 280, y: 40 };
+  private circleAnimationTimer: number = -1;
   private knowledgeService: KnowledgeService = KnowledgeService.getInstance();
   private achievementCallback: AchievementUnlockCallback | null = null;
 
@@ -156,6 +175,38 @@ struct MainTabPage {
 
     // 检查是否需要显示新手导引
     this.checkOnboardingGuide();
+
+    // 启动装饰圆圈漂浮动画
+    this.startCircleFloatAnimation();
+  }
+
+  /**
+   * 启动装饰圆圈漂浮动画
+   */
+  private startCircleFloatAnimation(): void {
+    // 每2秒随机更新一次位置
+    this.circleAnimationTimer = setInterval(() => {
+      this.animateCircles();
+    }, 2500);
+    // 立即执行一次
+    this.animateCircles();
+  }
+
+  /**
+   * 执行圆圈漂浮动画
+   */
+  private animateCircles(): void {
+    animateTo({ duration: 2000, curve: Curve.EaseInOut }, () => {
+      // 随机生成新位置（使用数值，范围在卡片内）
+      this.circleOffset1 = { x: 80 + Math.random() * 40, y: 5 + Math.random() * 50 };
+      this.circleOffset2 = { x: 90 + Math.random() * 35, y: 10 + Math.random() * 45 };
+      this.circleOffset3 = { x: 75 + Math.random() * 45, y: 0 + Math.random() * 55 };
+      this.circleOffset4 = { x: 70 + Math.random() * 50, y: 5 + Math.random() * 50 };
+      this.circleOffset5 = { x: 85 + Math.random() * 40, y: 10 + Math.random() * 45 };
+      // 模拟考试区域装饰圆圈
+      this.examCircleOffset1 = { x: 220 + Math.random() * 60, y: -20 + Math.random() * 40 };
+      this.examCircleOffset2 = { x: 260 + Math.random() * 50, y: 30 + Math.random() * 40 };
+    });
   }
 
   /**
@@ -226,13 +277,56 @@ struct MainTabPage {
       achievementNotificationService.unregister(this.achievementCallback);
       this.achievementCallback = null;
     }
+    // 清理装饰圆圈动画定时器
+    if (this.circleAnimationTimer !== -1) {
+      clearInterval(this.circleAnimationTimer);
+      this.circleAnimationTimer = -1;
+    }
   }
 
   onPageShow(): void {
     // 页面显示时刷新统计数据
     this.loadStatistics();
+    // 立即刷新知识库UI（同步）
+    this.knowledgeSubjects = this.knowledgeService.getSubjects();
+    this.allKnowledgeArticles = [...this.knowledgeService.getAllArticles()];
+    this.knowledgeFavoriteCount = this.knowledgeService.getFavoriteCount();
+    this.knowledgeNoteCount = this.knowledgeService.getNoteCount();
+    // 增加刷新计数器强制UI更新
+    this.knowledgeRefreshKey++;
   }
 
+  /**
+   * 知识库刷新触发器变化时触发
+   */
+  onKnowledgeRefreshTrigger(): void {
+    // 刷新知识库UI
+    this.knowledgeSubjects = this.knowledgeService.getSubjects();
+    this.allKnowledgeArticles = [...this.knowledgeService.getAllArticles()];
+    this.knowledgeFavoriteCount = this.knowledgeService.getFavoriteCount();
+    this.knowledgeNoteCount = this.knowledgeService.getNoteCount();
+    // 增加刷新计数器强制UI更新
+    this.knowledgeRefreshKey++;
+  }
+
+  /**
+   * 更新知识库UI数据（不从数据库重新加载，只刷新UI状态）
+   */
+  private updateKnowledgeUI(): void {
+    this.knowledgeSubjects = this.knowledgeService.getSubjects();
+    this.allKnowledgeArticles = [...this.knowledgeService.getAllArticles()];
+    this.knowledgeFavoriteCount = this.knowledgeService.getFavoriteCount();
+    this.knowledgeNoteCount = this.knowledgeService.getNoteCount();
+  }
+
+  /**
+   * 刷新知识库数据（从数据库重新加载）
+   */
+  private async refreshKnowledgeData(): Promise<void> {
+    // 先刷新服务中的数据（从数据库重新加载）
+    await this.knowledgeService.refreshData();
+    this.updateKnowledgeUI();
+  }
 
   /**
    * 加载统计数据
@@ -273,9 +367,12 @@ struct MainTabPage {
       // 加载总体进度（已完成的不重复题目数）
       this.completedQuestionCount = await answerRecordService.getCompletedQuestionCount();
 
-      // 加载知识库数据
+      // 加载知识库数据（使用内存中的最新数据）
       this.knowledgeSubjects = this.knowledgeService.getSubjects();
-      this.allKnowledgeArticles = this.knowledgeService.getAllArticles();
+      // 创建新数组以触发UI更新
+      this.allKnowledgeArticles = [...this.knowledgeService.getAllArticles()];
+      this.knowledgeFavoriteCount = this.knowledgeService.getFavoriteCount();
+      this.knowledgeNoteCount = this.knowledgeService.getNoteCount();
 
       // 加载智能推荐数据
       this.recommendCards = await smartRecommendService.getTodayRecommendCards();
@@ -408,6 +505,10 @@ struct MainTabPage {
         .barBackgroundColor(this.isDarkMode ? ThemeColors.SURFACE_DARK : ThemeColors.SURFACE)
         .onChange((index: number) => {
           this.currentIndex = index;
+          // 切换到知识库Tab时刷新UI
+          if (index === 2) {
+            this.updateKnowledgeUI();
+          }
         })
       }
       .width('100%')
@@ -1480,13 +1581,13 @@ struct MainTabPage {
               colors: [[ThemeColors.PRIMARY, 0], [ThemeColors.SECONDARY, 1]]
             })
 
-          // 装饰圆圈
+          // 装饰圆圈 - 漂浮动画
           Column()
             .width(60)
             .height(60)
             .borderRadius(30)
             .backgroundColor('rgba(255,255,255,0.1)')
-            .position({ x: '65%', y: -15 })
+            .position(this.circleOffset1)
 
           Column() {
             Row() {
@@ -1549,7 +1650,7 @@ struct MainTabPage {
             .height(50)
             .borderRadius(25)
             .backgroundColor('rgba(255,255,255,0.1)')
-            .position({ x: '60%', y: -10 })
+            .position(this.circleOffset2)
 
           Column() {
             Row() {
@@ -1619,7 +1720,7 @@ struct MainTabPage {
             .height(45)
             .borderRadius(22)
             .backgroundColor('rgba(255,255,255,0.1)')
-            .position({ x: '65%', y: -8 })
+            .position(this.circleOffset3)
 
           Column() {
             Row() {
@@ -1677,7 +1778,7 @@ struct MainTabPage {
             .height(50)
             .borderRadius(25)
             .backgroundColor('rgba(255,255,255,0.1)')
-            .position({ x: '60%', y: -10 })
+            .position(this.circleOffset4)
 
           Column() {
             Row() {
@@ -1740,20 +1841,20 @@ struct MainTabPage {
             colors: [['#722ED1', 0], ['#531DAB', 1]]
           })
 
-        // 装饰元素
+        // 装饰元素 - 漂浮动画
         Column()
           .width(80)
           .height(80)
           .borderRadius(40)
           .backgroundColor('rgba(255,255,255,0.08)')
-          .position({ x: '75%', y: -20 })
+          .position(this.examCircleOffset1)
 
         Column()
           .width(40)
           .height(40)
           .borderRadius(20)
           .backgroundColor('rgba(255,255,255,0.06)')
-          .position({ x: '85%', y: 50 })
+          .position(this.examCircleOffset2)
 
         // 内容
         Row() {
@@ -2511,42 +2612,53 @@ struct MainTabPage {
   @Builder
   StatisticsContent() {
     Column() {
-      // 顶部标题栏
+      // 使用 knowledgeRefreshKey 强制重新渲染
+      Text('').fontSize(0).opacity(0).key(`knowledge_refresh_${this.knowledgeRefreshKey}`)
+      
+      // 顶部标题栏 - 美化版
       Row() {
-        Text('知识库')
-          .fontSize(ThemeConstants.FONT_SIZE_XL)
-          .fontWeight(FontWeight.Bold)
-          .fontColor(ThemeColors.TEXT_PRIMARY)
+        Row() {
+          Text('📚')
+            .fontSize(22)
+          Text(' 知识库')
+            .fontSize(ThemeConstants.FONT_SIZE_XL)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+        }
 
         Blank()
 
+        // 文章总数徽章
         Row() {
-          Image($r('app.media.KnowledgeBase'))
-            .width(14)
-            .height(14)
-            .objectFit(ImageFit.Contain)
-          Text(`${this.allKnowledgeArticles.length} 篇`)
-            .fontSize(ThemeConstants.FONT_SIZE_SM)
-            .fontColor(ThemeColors.TEXT_SECONDARY)
-            .margin({ left: 4 })
+          Text(`${this.allKnowledgeArticles.length}`)
+            .fontSize(14)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.WHITE)
+          Text(' 篇')
+            .fontSize(12)
+            .fontColor(ThemeColors.WHITE)
         }
-        .padding({ left: 10, right: 10, top: 4, bottom: 4 })
-        .backgroundColor(ThemeColors.PRIMARY + '15')
-        .borderRadius(12)
+        .padding({ left: 12, right: 12, top: 6, bottom: 6 })
+        .linearGradient({
+          angle: 90,
+          colors: [[ThemeColors.PRIMARY, 0], [ThemeColors.PRIMARY_LIGHT, 1]]
+        })
+        .borderRadius(16)
+        .shadow({ radius: 4, color: ThemeColors.PRIMARY + '40', offsetY: 2 })
       }
       .width('100%')
       .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD,
         top: ThemeConstants.SPACING_MD, bottom: ThemeConstants.SPACING_SM })
 
-      // 搜索框
+      // 搜索框 - 美化版
       Row() {
         Image($r('app.media.Search'))
           .width(18)
           .height(18)
-          .margin({ left: 12 })
+          .margin({ left: 14 })
           .objectFit(ImageFit.Contain)
 
-        TextInput({ placeholder: '搜索知识点...', text: this.knowledgeSearchText })
+        TextInput({ placeholder: '搜索知识点、标准规范...', text: this.knowledgeSearchText })
           .placeholderColor(ThemeColors.TEXT_HINT)
           .placeholderFont({ size: 14 })
           .fontSize(14)
@@ -2557,12 +2669,24 @@ struct MainTabPage {
           .onChange((value: string) => {
             this.knowledgeSearchText = value;
           })
+
+        if (this.knowledgeSearchText.length > 0) {
+          Text('✕')
+            .fontSize(14)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .margin({ right: 14 })
+            .onClick(() => {
+              this.knowledgeSearchText = '';
+            })
+        }
       }
       .width('100%')
-      .height(44)
+      .height(46)
       .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
-      .backgroundColor(ThemeColors.GRAY_100)
-      .borderRadius(22)
+      .backgroundColor(ThemeColors.SURFACE)
+      .borderRadius(23)
+      .border({ width: 1, color: ThemeColors.GRAY_200 })
+      .shadow({ radius: 2, color: 'rgba(0,0,0,0.05)', offsetY: 1 })
 
       // 知识库内容
       if (this.knowledgeSearchText.trim()) {
@@ -2622,7 +2746,7 @@ struct MainTabPage {
   }
 
   /**
-   * 知识库智能推荐区域
+   * 知识库智能推荐区域 - 美化版
    */
   @Builder
   KnowledgeRecommendSection() {
@@ -2631,53 +2755,70 @@ struct MainTabPage {
       if (this.getRecommendedSubjects().length > 0) {
         Column() {
           Row() {
-            Text('💡')
-              .fontSize(13)
-            Text(' 薄弱知识点')
-              .fontSize(13)
-              .fontWeight(FontWeight.Medium)
-              .fontColor(ThemeColors.TEXT_PRIMARY)
+            Row() {
+              Text('🎯')
+                .fontSize(14)
+              Text(' 薄弱知识点')
+                .fontSize(14)
+                .fontWeight(FontWeight.Medium)
+                .fontColor(ThemeColors.TEXT_PRIMARY)
+            }
             
             Blank()
             
-            Text(`${this.getTotalWrongCount()} 道错题`)
-              .fontSize(11)
-              .fontColor(ThemeColors.TEXT_HINT)
+            Row() {
+              Text(`${this.getTotalWrongCount()}`)
+                .fontSize(12)
+                .fontWeight(FontWeight.Bold)
+                .fontColor(ThemeColors.ERROR)
+              Text(' 道错题待攻克')
+                .fontSize(11)
+                .fontColor(ThemeColors.TEXT_HINT)
+            }
           }
           .width('100%')
-          .margin({ bottom: 8 })
+          .margin({ bottom: 10 })
 
-          // 横向排列的推荐科目
+          // 横向排列的推荐科目 - 美化版
           Row({ space: 8 }) {
             ForEach(this.getRecommendedSubjects(), (subject: SubjectInfo, index: number) => {
               Row() {
-                // 排名小圆点
-                Text(`${index + 1}`)
-                  .fontSize(9)
-                  .fontColor(ThemeColors.WHITE)
-                  .fontWeight(FontWeight.Bold)
-                  .textAlign(TextAlign.Center)
-                  .width(14)
-                  .height(14)
-                  .borderRadius(7)
-                  .backgroundColor(index === 0 ? '#FF4D4F' : (index === 1 ? '#FF7A45' : '#FAAD14'))
+                // 排名徽章
+                Column() {
+                  Text(`${index + 1}`)
+                    .fontSize(10)
+                    .fontColor(ThemeColors.WHITE)
+                    .fontWeight(FontWeight.Bold)
+                }
+                .width(18)
+                .height(18)
+                .borderRadius(9)
+                .justifyContent(FlexAlign.Center)
+                .linearGradient({
+                  angle: 135,
+                  colors: index === 0 ? [['#FF4D4F', 0], ['#FF7875', 1]] :
+                    (index === 1 ? [['#FF7A45', 0], ['#FFA940', 1]] : [['#FAAD14', 0], ['#FFD666', 1]])
+                })
 
-                // 科目名称（简短）
+                // 科目名称
                 Text(subject.shortName)
                   .fontSize(12)
+                  .fontWeight(FontWeight.Medium)
                   .fontColor(ThemeColors.TEXT_PRIMARY)
                   .margin({ left: 6 })
 
                 // 错题数
                 Text(`${this.getSubjectWrongCount(subject.id)}`)
                   .fontSize(11)
+                  .fontWeight(FontWeight.Bold)
                   .fontColor(ThemeColors.ERROR)
                   .margin({ left: 4 })
               }
-              .padding({ left: 8, right: 10, top: 6, bottom: 6 })
+              .padding({ left: 8, right: 12, top: 8, bottom: 8 })
               .backgroundColor(ThemeColors.SURFACE)
-              .borderRadius(16)
-              .border({ width: 1, color: ThemeColors.GRAY_200 })
+              .borderRadius(20)
+              .border({ width: 1, color: index === 0 ? '#FFCCC7' : (index === 1 ? '#FFD8BF' : '#FFE7BA') })
+              .shadow({ radius: 2, color: 'rgba(0,0,0,0.05)', offsetY: 1 })
               .onClick(() => {
                 if (!this.expandedSubjects.has(subject.id)) {
                   this.toggleSubjectExpand(subject.id);
@@ -2688,14 +2829,17 @@ struct MainTabPage {
           .width('100%')
         }
         .width('100%')
-        .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
-        .margin({ top: ThemeConstants.SPACING_SM, bottom: ThemeConstants.SPACING_XS })
+        .padding(ThemeConstants.SPACING_MD)
+        .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+        .backgroundColor(ThemeColors.SURFACE)
+        .borderRadius(ThemeConstants.RADIUS_MD)
+        .border({ width: 1, color: '#FFEBE8' })
       }
     }
   }
 
   /**
-   * 知识库树形目录视图
+   * 知识库树形目录视图 - 美化版
    */
   @Builder
   KnowledgeTreeView() {
@@ -2703,6 +2847,25 @@ struct MainTabPage {
       Column() {
         // 智能推荐区域
         this.KnowledgeRecommendSection()
+
+        // 科目分类标题
+        Row() {
+          Text('📂')
+            .fontSize(14)
+          Text(' 知识分类')
+            .fontSize(14)
+            .fontWeight(FontWeight.Medium)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+          
+          Blank()
+          
+          Text(`${this.knowledgeSubjects.length} 个科目`)
+            .fontSize(11)
+            .fontColor(ThemeColors.TEXT_HINT)
+        }
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+        .margin({ top: ThemeConstants.SPACING_MD, bottom: ThemeConstants.SPACING_XS })
 
         // 科目树形列表
         ForEach(this.knowledgeSubjects, (subject: KnowledgeSubject) => {
@@ -2717,65 +2880,102 @@ struct MainTabPage {
   }
 
   /**
-   * 科目树形节点
+   * 科目树形节点 - 美化版
    */
   @Builder
   KnowledgeSubjectTree(subject: KnowledgeSubject) {
     Column() {
-      // 科目标题行（可展开/折叠）
+      // 科目标题行（可展开/折叠）- 美化版
       Row() {
-        // 展开/折叠图标
-        Image($r('app.media.right'))
-          .width(12)
-          .height(12)
-          .objectFit(ImageFit.Contain)
-          .rotate({ angle: this.isSubjectExpanded(subject.id) ? 90 : 0 })
-          .margin({ right: 8 })
-
-        // 科目图标（使用对应科目图片资源）
+        // 科目图标（带背景色）
         Column() {
           Image(this.getSubjectIcon(subject.id))
-            .width(22)
-            .height(22)
+            .width(24)
+            .height(24)
             .objectFit(ImageFit.Contain)
         }
-        .width(36)
-        .height(36)
-        .borderRadius(ThemeConstants.RADIUS_SM)
-        .backgroundColor(subject.color + '20')
+        .width(44)
+        .height(44)
+        .borderRadius(12)
+        .linearGradient({
+          angle: 135,
+          colors: [[subject.color + '30', 0], [subject.color + '15', 1]]
+        })
         .justifyContent(FlexAlign.Center)
 
         // 科目信息
         Column() {
-          Text(subject.name)
-            .fontSize(ThemeConstants.FONT_SIZE_BASE)
-            .fontWeight(FontWeight.Medium)
-            .fontColor(ThemeColors.TEXT_PRIMARY)
+          Row() {
+            Text(subject.name)
+              .fontSize(15)
+              .fontWeight(FontWeight.Medium)
+              .fontColor(ThemeColors.TEXT_PRIMARY)
 
-          Text(`${subject.articleCount} 篇知识点`)
-            .fontSize(ThemeConstants.FONT_SIZE_XS)
-            .fontColor(ThemeColors.TEXT_HINT)
-            .margin({ top: 2 })
+            // 进度标签
+            if (this.getSubjectReadProgress(subject.id) > 0) {
+              Text(`${this.getSubjectReadProgress(subject.id)}%`)
+                .fontSize(10)
+                .fontColor(ThemeColors.WHITE)
+                .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+                .backgroundColor(subject.color)
+                .borderRadius(8)
+                .margin({ left: 8 })
+            }
+          }
+
+          // 进度条
+          Row() {
+            Row()
+              .width(`${this.getSubjectReadProgress(subject.id)}%`)
+              .height(4)
+              .backgroundColor(subject.color)
+              .borderRadius(2)
+          }
+          .width('100%')
+          .height(4)
+          .backgroundColor(subject.color + '20')
+          .borderRadius(2)
+          .margin({ top: 8 })
+
+          // 统计信息
+          Row() {
+            Text(`${subject.articleCount} 篇`)
+              .fontSize(11)
+              .fontColor(ThemeColors.TEXT_HINT)
+            Text(' · ')
+              .fontSize(11)
+              .fontColor(ThemeColors.TEXT_HINT)
+            Text(`已读 ${this.allKnowledgeArticles.filter((a: KnowledgeArticle) => a.subjectId === subject.id && a.viewCount > 0).length} 篇`)
+              .fontSize(11)
+              .fontColor(ThemeColors.SUCCESS)
+          }
+          .margin({ top: 4 })
         }
         .alignItems(HorizontalAlign.Start)
         .margin({ left: ThemeConstants.SPACING_SM })
         .layoutWeight(1)
 
-        // 进度指示 - 只有进度大于0时才显示
-        if (this.getSubjectReadProgress(subject.id) > 0) {
-          Text(`${this.getSubjectReadProgress(subject.id)}%`)
-            .fontSize(ThemeConstants.FONT_SIZE_XS)
-            .fontColor(ThemeColors.WHITE)
-            .padding({ left: 8, right: 8, top: 2, bottom: 2 })
-            .backgroundColor(subject.color)
-            .borderRadius(10)
+        // 展开/折叠箭头（带动画）
+        Column() {
+          Image($r('app.media.right'))
+            .width(14)
+            .height(14)
+            .objectFit(ImageFit.Contain)
+            .rotate({ angle: this.isSubjectExpanded(subject.id) ? 90 : 0 })
+            .animation({ duration: 200, curve: Curve.EaseOut })
         }
+        .width(32)
+        .height(32)
+        .borderRadius(16)
+        .backgroundColor(ThemeColors.GRAY_100)
+        .justifyContent(FlexAlign.Center)
       }
       .width('100%')
       .padding(ThemeConstants.SPACING_BASE)
       .backgroundColor(ThemeColors.SURFACE)
       .borderRadius(ThemeConstants.RADIUS_MD)
-      .border({ width: 1, color: ThemeColors.GRAY_200 })
+      .border({ width: 1, color: this.isSubjectExpanded(subject.id) ? subject.color + '40' : ThemeColors.GRAY_200 })
+      .shadow({ radius: this.isSubjectExpanded(subject.id) ? 6 : 2, color: 'rgba(0,0,0,0.06)', offsetY: 2 })
       .onClick(() => {
         this.toggleSubjectExpand(subject.id);
       })
@@ -2788,8 +2988,8 @@ struct MainTabPage {
           }, (category: KnowledgeCategory) => category.id)
         }
         .width('100%')
-        .padding({ left: 20 })
-        .margin({ top: 4 })
+        .padding({ left: 20, top: 4 })
+        .animation({ duration: 200, curve: Curve.EaseOut })
       }
     }
     .width('100%')
@@ -2797,43 +2997,63 @@ struct MainTabPage {
   }
 
   /**
-   * 分类树形节点
+   * 分类树形节点 - 美化版
    */
   @Builder
   KnowledgeCategoryTree(subject: KnowledgeSubject, category: KnowledgeCategory) {
     Column() {
       // 分类标题行
       Row() {
-        // 展开/折叠图标
-        Image($r('app.media.right'))
-          .width(10)
-          .height(10)
-          .objectFit(ImageFit.Contain)
-          .rotate({ angle: this.isCategoryExpanded(category.id) ? 90 : 0 })
-          .margin({ right: 6 })
+        // 连接线指示
+        Column()
+          .width(3)
+          .height(24)
+          .backgroundColor(subject.color + '40')
+          .borderRadius(2)
 
-        // 分类图标（使用图片资源）
-        Image($r('app.media.KnowledgeBase'))
-          .width(16)
-          .height(16)
-          .objectFit(ImageFit.Contain)
+        // 分类图标
+        Column() {
+          Image($r('app.media.KnowledgeBase'))
+            .width(16)
+            .height(16)
+            .objectFit(ImageFit.Contain)
+        }
+        .width(28)
+        .height(28)
+        .borderRadius(8)
+        .backgroundColor(subject.color + '15')
+        .justifyContent(FlexAlign.Center)
+        .margin({ left: 10 })
 
         // 分类名称
         Text(category.name)
-          .fontSize(ThemeConstants.FONT_SIZE_SM)
+          .fontSize(14)
           .fontColor(ThemeColors.TEXT_PRIMARY)
-          .margin({ left: 6 })
+          .margin({ left: 8 })
           .layoutWeight(1)
 
-        // 文章数量
+        // 文章数量徽章
         Text(`${category.articleCount}`)
-          .fontSize(ThemeConstants.FONT_SIZE_XS)
-          .fontColor(ThemeColors.TEXT_HINT)
+          .fontSize(11)
+          .fontColor(subject.color)
+          .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+          .backgroundColor(subject.color + '15')
+          .borderRadius(10)
+
+        // 展开/折叠箭头
+        Image($r('app.media.right'))
+          .width(12)
+          .height(12)
+          .objectFit(ImageFit.Contain)
+          .rotate({ angle: this.isCategoryExpanded(category.id) ? 90 : 0 })
+          .animation({ duration: 200, curve: Curve.EaseOut })
+          .margin({ left: 8 })
       }
       .width('100%')
-      .padding({ left: 8, right: 12, top: 10, bottom: 10 })
-      .backgroundColor(ThemeColors.GRAY_100)
+      .padding({ left: 8, right: 12, top: 12, bottom: 12 })
+      .backgroundColor(ThemeColors.SURFACE)
       .borderRadius(ThemeConstants.RADIUS_SM)
+      .border({ width: 1, color: ThemeColors.GRAY_200 })
       .onClick(() => {
         this.toggleCategoryExpand(category.id);
       })
@@ -2848,43 +3068,73 @@ struct MainTabPage {
         .width('100%')
         .padding({ left: 16 })
         .margin({ top: 4 })
+        .animation({ duration: 200, curve: Curve.EaseOut })
       }
     }
     .width('100%')
-    .margin({ top: 4 })
+    .margin({ top: 6 })
   }
 
   /**
-   * 文章树形项
+   * 文章树形项 - 美化版
    */
   @Builder
   KnowledgeArticleTreeItem(article: KnowledgeArticle, color: string) {
     Row() {
-      // 连接线指示
-      Column()
-        .width(3)
-        .height(20)
-        .backgroundColor(color + '40')
-        .borderRadius(2)
+      // 文章内容区
+      Column() {
+        // 标题行
+        Row() {
+          Text(article.title)
+            .fontSize(14)
+            .fontColor(this.knowledgeService.isArticleRead(article.id) ? ThemeColors.TEXT_HINT : ThemeColors.TEXT_PRIMARY)
+            .maxLines(2)
+            .textOverflow({ overflow: TextOverflow.Ellipsis })
+            .layoutWeight(1)
 
-      // 文章标题
-      Text(article.title)
-        .fontSize(ThemeConstants.FONT_SIZE_BASE)
-        .fontColor(ThemeColors.TEXT_PRIMARY)
-        .maxLines(1)
-        .textOverflow({ overflow: TextOverflow.Ellipsis })
-        .margin({ left: 10 })
-        .layoutWeight(1)
+          // 已读标记
+          if (this.knowledgeService.isArticleRead(article.id)) {
+            Text('已读')
+              .fontSize(10)
+              .fontColor(ThemeColors.SUCCESS)
+              .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+              .backgroundColor(ThemeColors.SUCCESS + '15')
+              .borderRadius(8)
+              .margin({ left: 8 })
+          }
+        }
+        .width('100%')
 
-      // 阅读状态
-      if (article.viewCount > 0) {
-        Text('✓')
-          .fontSize(14)
-          .fontColor(ThemeColors.SUCCESS)
+        // 元信息行
+        Row() {
+          if (article.source) {
+            Text(article.source)
+              .fontSize(11)
+              .fontColor(color)
+              .maxLines(1)
+          }
+          Text(`⏱ ${article.readTime}分钟`)
+            .fontSize(11)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .margin({ left: article.source ? 8 : 0 })
+        }
+        .width('100%')
+        .margin({ top: 4 })
       }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+
+      // 箭头
+      Text('›')
+        .fontSize(18)
+        .fontColor(ThemeColors.TEXT_HINT)
     }
     .width('100%')
-    .padding({ left: 12, right: 16, top: 14, bottom: 14 })
+    .padding({ left: 12, right: 12, top: 12, bottom: 12 })
+    .backgroundColor(ThemeColors.SURFACE)
+    .borderRadius(8)
+    .border({ width: 1, color: ThemeColors.GRAY_100 })
+    .margin({ top: 6 })
     .onClick(() => {
       const params: RouteParams = {};
       params['articleId'] = article.id;
@@ -2893,27 +3143,48 @@ struct MainTabPage {
   }
 
   /**
-   * 知识库搜索结果
+   * 知识库搜索结果 - 美化版
    */
   @Builder
   KnowledgeSearchResults() {
     Scroll() {
       Column() {
+        // 搜索结果统计
+        Row() {
+          Text('🔍')
+            .fontSize(13)
+          Text(` 找到 `)
+            .fontSize(13)
+            .fontColor(ThemeColors.TEXT_SECONDARY)
+          Text(`${this.getFilteredKnowledgeArticles().length}`)
+            .fontSize(13)
+            .fontWeight(FontWeight.Bold)
+            .fontColor(ThemeColors.PRIMARY)
+          Text(` 个相关知识点`)
+            .fontSize(13)
+            .fontColor(ThemeColors.TEXT_SECONDARY)
+        }
+        .width('100%')
+        .padding({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD })
+        .margin({ top: ThemeConstants.SPACING_SM, bottom: ThemeConstants.SPACING_XS })
+
         ForEach(this.getFilteredKnowledgeArticles(), (article: KnowledgeArticle) => {
-          this.KnowledgeArticleItem(article)
+          this.KnowledgeSearchResultItem(article)
         }, (article: KnowledgeArticle) => article.id)
 
         if (this.getFilteredKnowledgeArticles().length === 0) {
           Column() {
-            Image($r('app.media.Search'))
-              .width(48)
-              .height(48)
+            Text('🔍')
+              .fontSize(48)
               .margin({ top: 60 })
-              .objectFit(ImageFit.Contain)
             Text('未找到相关知识点')
-              .fontSize(ThemeConstants.FONT_SIZE_BASE)
-              .fontColor(ThemeColors.TEXT_HINT)
+              .fontSize(16)
+              .fontColor(ThemeColors.TEXT_SECONDARY)
               .margin({ top: ThemeConstants.SPACING_MD })
+            Text('试试其他关键词吧')
+              .fontSize(13)
+              .fontColor(ThemeColors.TEXT_HINT)
+              .margin({ top: 4 })
           }
           .width('100%')
         }
@@ -2923,6 +3194,88 @@ struct MainTabPage {
     .scrollBar(BarState.Off)
     .layoutWeight(1)
     .margin({ top: ThemeConstants.SPACING_SM })
+  }
+
+  /**
+   * 搜索结果项 - 美化版
+   */
+  @Builder
+  KnowledgeSearchResultItem(article: KnowledgeArticle) {
+    Row() {
+      // 左侧科目色条
+      Column()
+        .width(4)
+        .height('100%')
+        .backgroundColor(this.getSubjectColor(article.subjectId))
+        .borderRadius({ topLeft: 8, bottomLeft: 8 })
+
+      // 内容区
+      Column() {
+        // 标题（高亮关键词）
+        Text(article.title)
+          .fontSize(15)
+          .fontWeight(FontWeight.Medium)
+          .fontColor(ThemeColors.TEXT_PRIMARY)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+
+        // 摘要
+        Text(article.summary)
+          .fontSize(12)
+          .fontColor(ThemeColors.TEXT_HINT)
+          .maxLines(2)
+          .textOverflow({ overflow: TextOverflow.Ellipsis })
+          .margin({ top: 6 })
+
+        // 元信息行
+        Row() {
+          // 科目标签
+          Text(this.getSubjectName(article.subjectId))
+            .fontSize(11)
+            .fontColor(this.getSubjectColor(article.subjectId))
+            .padding({ left: 8, right: 8, top: 3, bottom: 3 })
+            .backgroundColor(this.getSubjectColor(article.subjectId) + '15')
+            .borderRadius(10)
+
+          // 分类
+          Text(article.categoryName)
+            .fontSize(11)
+            .fontColor(ThemeColors.TEXT_HINT)
+            .margin({ left: 8 })
+
+          Blank()
+
+          // 阅读时间
+          Text(`⏱ ${article.readTime}分钟`)
+            .fontSize(11)
+            .fontColor(ThemeColors.TEXT_HINT)
+        }
+        .width('100%')
+        .margin({ top: 10 })
+      }
+      .alignItems(HorizontalAlign.Start)
+      .layoutWeight(1)
+      .padding({ left: 12, right: 12, top: 14, bottom: 14 })
+    }
+    .width('100%')
+    .margin({ left: ThemeConstants.SPACING_MD, right: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_SM })
+    .backgroundColor(ThemeColors.SURFACE)
+    .borderRadius(ThemeConstants.RADIUS_MD)
+    .border({ width: 1, color: ThemeColors.GRAY_200 })
+    .shadow({ radius: 2, color: 'rgba(0,0,0,0.04)', offsetY: 1 })
+    .onClick(() => {
+      const params: RouteParams = {};
+      params['articleId'] = article.id;
+      Router.push('pages/KnowledgeDetailPage', params);
+    })
+  }
+
+  /**
+   * 获取科目颜色
+   */
+  private getSubjectColor(subjectId: string): string {
+    const subject = this.knowledgeSubjects.find((s: KnowledgeSubject) => s.id === subjectId);
+    return subject ? subject.color : ThemeColors.PRIMARY;
   }
 
   /**
@@ -3032,12 +3385,28 @@ struct MainTabPage {
     Column() {
       Row() {
         Column() {
-          Text(article.title)
-            .fontSize(ThemeConstants.FONT_SIZE_BASE)
-            .fontWeight(FontWeight.Bold)
-            .fontColor(ThemeColors.TEXT_PRIMARY)
-            .maxLines(2)
-            .textOverflow({ overflow: TextOverflow.Ellipsis })
+          // 标题行
+          Row() {
+            Text(article.title)
+              .fontSize(ThemeConstants.FONT_SIZE_BASE)
+              .fontWeight(FontWeight.Bold)
+              .fontColor(this.knowledgeService.isArticleRead(article.id) ? ThemeColors.TEXT_HINT : ThemeColors.TEXT_PRIMARY)
+              .maxLines(2)
+              .textOverflow({ overflow: TextOverflow.Ellipsis })
+              .layoutWeight(1)
+
+            // 已读标记
+            if (this.knowledgeService.isArticleRead(article.id)) {
+              Text('已读')
+                .fontSize(10)
+                .fontColor(ThemeColors.SUCCESS)
+                .padding({ left: 6, right: 6, top: 2, bottom: 2 })
+                .backgroundColor(ThemeColors.SUCCESS + '15')
+                .borderRadius(8)
+                .margin({ left: 8 })
+            }
+          }
+          .width('100%')
 
           Text(article.summary)
             .fontSize(ThemeConstants.FONT_SIZE_XS)

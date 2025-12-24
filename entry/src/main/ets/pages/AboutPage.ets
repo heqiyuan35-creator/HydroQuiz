@@ -149,6 +149,45 @@ struct AboutPage {
           .backgroundColor($r('app.color.surface'))
           .borderRadius(12)
 
+          // 作者信息
+          Column() {
+            Text('开发者')
+              .fontSize(ThemeConstants.FONT_SIZE_BASE)
+              .fontWeight(FontWeight.Bold)
+              .fontColor($r('app.color.text_primary'))
+              .width('100%')
+              .margin({ bottom: ThemeConstants.SPACING_SM })
+
+            Row() {
+              Text('👤')
+                .fontSize(18)
+                .margin({ right: 8 })
+
+              Text('何启源')
+                .fontSize(ThemeConstants.FONT_SIZE_SM)
+                .fontColor($r('app.color.text_primary'))
+            }
+            .width('100%')
+            .padding({ top: ThemeConstants.SPACING_XS, bottom: ThemeConstants.SPACING_XS })
+
+            Row() {
+              Text('📧')
+                .fontSize(18)
+                .margin({ right: 8 })
+
+              Text('2770113524@qq.com')
+                .fontSize(ThemeConstants.FONT_SIZE_SM)
+                .fontColor(ThemeColors.PRIMARY)
+            }
+            .width('100%')
+            .padding({ top: ThemeConstants.SPACING_XS, bottom: ThemeConstants.SPACING_XS })
+          }
+          .width('100%')
+          .padding(ThemeConstants.SPACING_MD)
+          .margin({ top: ThemeConstants.SPACING_MD })
+          .backgroundColor($r('app.color.surface'))
+          .borderRadius(12)
+
           // 底部版权
           Column() {
             Text('2024 水利工程检测员刷题宝')

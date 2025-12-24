@@ -104,10 +104,10 @@ struct CardCollectionPage {
       Column() {
         // 顶部导航栏
         Row() {
-          Image($r('app.media.back'))
+          Image("")
             .width(24).height(24).fillColor('#FFFFFF')
             .onClick(() => router.back())
-          Text('卡片图鉴')
+          Text('')
             .fontSize(18).fontWeight(FontWeight.Bold).fontColor('#FFFFFF').margin({ left: 16 })
           Blank()
         }

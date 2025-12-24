@@ -171,6 +171,9 @@ class DatabaseService {
       // 卡片系统表
       await this.createCardTables();
 
+      // 知识库系统表
+      await this.createKnowledgeTables();
+
       Logger.info('[DatabaseService] Tables created successfully');
     } catch (error) {
       Logger.error('[DatabaseService] Failed to create tables', error as Error);
@@ -244,6 +247,54 @@ class DatabaseService {
     } catch (error) {
       Logger.error('[DatabaseService] Failed to create card tables', error as Error);
       throw new Error('Failed to create card database tables');
+    }
+  }
+
+  /**
+   * 创建知识库系统相关表
+   */
+  private async createKnowledgeTables(): Promise<void> {
+    if (!this.rdbStore) {
+      throw new Error('Database not initialized');
+    }
+
+    // 知识库阅读记录表
+    const createKnowledgeReadTable: string = `
+      CREATE TABLE IF NOT EXISTS knowledge_read_records (
+        article_id TEXT PRIMARY KEY,
+        view_count INTEGER DEFAULT 0,
+        read_time INTEGER DEFAULT 0,
+        progress INTEGER DEFAULT 0,
+        last_read_time INTEGER NOT NULL
+      )
+    `;
+
+    // 知识库收藏表
+    const createKnowledgeFavoritesTable: string = `
+      CREATE TABLE IF NOT EXISTS knowledge_favorites (
+        article_id TEXT PRIMARY KEY,
+        create_time INTEGER NOT NULL
+      )
+    `;
+
+    // 知识库笔记表
+    const createKnowledgeNotesTable: string = `
+      CREATE TABLE IF NOT EXISTS knowledge_notes (
+        article_id TEXT PRIMARY KEY,
+        note TEXT NOT NULL,
+        update_time INTEGER NOT NULL
+      )
+    `;
+
+    try {
+      await this.rdbStore.executeSql(createKnowledgeReadTable);
+      await this.rdbStore.executeSql(createKnowledgeFavoritesTable);
+      await this.rdbStore.executeSql(createKnowledgeNotesTable);
+
+      Logger.info('[DatabaseService] Knowledge tables created successfully');
+    } catch (error) {
+      Logger.error('[DatabaseService] Failed to create knowledge tables', error as Error);
+      throw new Error('Failed to create knowledge database tables');
     }
   }
 
