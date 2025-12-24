@@ -33,6 +33,8 @@
     "pages/GameLevelPage",
     "pages/GameResultPage",
     "pages/CardCollectionPage",
-    "pages/CardAlbumPage"
+    "pages/CardAlbumPage",
+    "pages/MapPage",
+    "pages/MapTestPage"
   ]
 }

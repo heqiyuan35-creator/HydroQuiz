@@ -268,6 +268,48 @@ struct SettingsPage {
         .padding({ left: ThemeConstants.SPACING_MD, top: ThemeConstants.SPACING_MD, bottom: ThemeConstants.SPACING_SM })
 
       Column() {
+        // 我的位置（地图）
+        Row() {
+          Text('我的位置')
+            .fontSize(ThemeConstants.FONT_SIZE_BASE)
+            .fontColor(ThemeColors.TEXT_PRIMARY)
+            .layoutWeight(1)
+
+          Image($r('app.media.Rightarrow'))
+            .width(16)
+            .height(16)
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACING_MD)
+        .onClick(() => {
+          Router.goToMap();
+        })
+
+        Divider()
+          .color(ThemeColors.GRAY_200)
+          .margin({ left: ThemeConstants.SPACING_MD })
+
+        // 地图测试页
+        Row() {
+          Text('地图测试（简化版）')
+            .fontSize(ThemeConstants.FONT_SIZE_BASE)
+            .fontColor(ThemeColors.PRIMARY)
+            .layoutWeight(1)
+
+          Image($r('app.media.Rightarrow'))
+            .width(16)
+            .height(16)
+        }
+        .width('100%')
+        .padding(ThemeConstants.SPACING_MD)
+        .onClick(() => {
+          Router.push('pages/MapTestPage');
+        })
+
+        Divider()
+          .color(ThemeColors.GRAY_200)
+          .margin({ left: ThemeConstants.SPACING_MD })
+
         // 重新查看新手导引
         Row() {
           Text('重新查看新手导引')

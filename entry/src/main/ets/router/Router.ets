@@ -278,4 +278,11 @@ export class Router {
     params['chapterId'] = chapterId as Object;
     await Router.push(AppConstants.ROUTE_GAME_LEVEL, params);
   }
+
+  /**
+   * 跳转到地图页面
+   */
+  static async goToMap(): Promise<void> {
+    await Router.push('pages/MapPage');
+  }
 }

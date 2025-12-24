@@ -37,17 +37,6 @@
       {
         "name": "release"
       }
-    ],
-    "capabilities": [
-      {
-        "bundleName": "com.example.hydroquiz",
-        "config": [
-          {
-            "capability": "com.huawei.service.mapkit",
-            "name": "Map Kit"
-          }
-        ]
-      }
     ]
   },
   "modules": [

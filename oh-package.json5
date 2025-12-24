@@ -2,6 +2,9 @@
   "modelVersion": "6.0.0",
   "description": "Please describe the basic information.",
   "dependencies": {
+    "@amap/amap_lbs_common": ">=1.2.3",
+    "@amap/amap_lbs_map3d": ">=2.2.7",
+    "@amap/amap_lbs_search": ">=1.0.2"
   },
   "devDependencies": {
     "@ohos/hypium": "1.0.24",

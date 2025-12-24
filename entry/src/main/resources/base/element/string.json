@@ -9,6 +9,10 @@
       "value": "用于语音录入笔记功能，将您的语音转换为文字"
     },
     {
+      "name": "location_permission_reason",
+      "value": "用于获取您的位置信息，在地图上显示当前位置"
+    },
+    {
       "name": "EntryAbility_desc",
       "value": "description"
     },
