@@ -1,2 +1,2 @@
 # HydroQuiz
-一款原生鸿蒙APP
+欢迎，这是一款原生鸿蒙APP
